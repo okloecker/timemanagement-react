@@ -1,4 +1,5 @@
 import React from "react";
+import * as storage from "storage/storage";
 
 import clsx from "clsx";
 
@@ -125,6 +126,8 @@ const Login = props => {
               setFieldError("password", json.error.message);
             } else if ((json.success || {}).message) {
               setStatus({ loginSuccessMessage: json.success.message });
+              const {message, ...rest} = json.success;
+              storage.local.setItem("userInfo", JSON.stringify(rest));
             }
           }
         }}
