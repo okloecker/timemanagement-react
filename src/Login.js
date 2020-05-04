@@ -20,6 +20,7 @@ import Visibility from "@material-ui/icons/Visibility";
 import VisibilityOff from "@material-ui/icons/VisibilityOff";
 import { makeStyles } from "@material-ui/core/styles";
 import { Formik } from "formik";
+import { useMutation } from "react-query";
 
 function Copyright() {
   return (
@@ -58,6 +59,20 @@ const Login = props => {
   const classes = useStyles();
   const [isShowPassword, setShowPassword] = React.useState(false);
 
+  const postLogin = ({ username, password }) =>
+    fetch("/app/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username,
+        password
+      })
+    });
+
+  const [mutate] = useMutation(postLogin);
+
   const handleClickShowPassword = () => {
     setShowPassword(prevIsShowPassword => !isShowPassword);
   };
@@ -91,30 +106,25 @@ const Login = props => {
           }
           return errors;
         }}
-        onSubmit={async (
-          values,
-          { setSubmitting, setFieldError, setStatus }
-        ) => {
-          const res = await fetch("/app/login", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              username: values.username,
-              password: values.password
-            })
+        onSubmit={async (values, { setFieldError, setStatus }) => {
+          const fetchResult = await mutate({
+            username: values.username,
+            password: values.password
           });
 
           if (
-            (res.headers.get("content-type") || {}).includes("application/json")
+            (
+              ((fetchResult || {}).headers || {}).get("content-type") || {}
+            ).includes("application/json")
           ) {
-            const resjson = await res.json();
-            if (resjson.error && resjson.error.message) {
-              setFieldError("username", resjson.error.message);
-              setFieldError("password", resjson.error.message);
-            } else if ((resjson.success || {}).message) {
-              setStatus({ loginSuccessMessage: resjson.success.message });
+            const json = await fetchResult.json();
+            if(json.username) setFieldError("username", json.username.join());
+            else if(json.password) setFieldError("password", json.password.join());
+            else if ((json.error || {}).message) {
+              setFieldError("username", json.error.message);
+              setFieldError("password", json.error.message);
+            } else if ((json.success || {}).message) {
+              setStatus({ loginSuccessMessage: json.success.message });
             }
           }
         }}
