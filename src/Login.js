@@ -2,19 +2,24 @@ import React from "react";
 
 import clsx from "clsx";
 
-import Box from "@material-ui/core/Box";
-import Button from "@material-ui/core/Button";
-import Container from "@material-ui/core/Container";
-import CssBaseline from "@material-ui/core/CssBaseline";
-import IconButton from "@material-ui/core/IconButton";
-import Grid from "@material-ui/core/Grid";
-import InputAdornment from "@material-ui/core/InputAdornment";
-import Link from "@material-ui/core/Link";
-import TextField from "@material-ui/core/TextField";
-import Typography from "@material-ui/core/Typography";
+import Alert from "@material-ui/lab/Alert";
+import {
+  Box,
+  Button,
+  Container,
+  CssBaseline,
+  IconButton,
+  InputAdornment,
+  LinearProgress,
+  Link,
+  TextField,
+  Typography
+} from "@material-ui/core";
+// import Grid from "@material-ui/core/Grid";
 import Visibility from "@material-ui/icons/Visibility";
 import VisibilityOff from "@material-ui/icons/VisibilityOff";
 import { makeStyles } from "@material-ui/core/styles";
+import { Formik } from "formik";
 
 function Copyright() {
   return (
@@ -51,102 +56,165 @@ const useStyles = makeStyles(theme => ({
 
 const Login = props => {
   const classes = useStyles();
-  const [values, setValues] = React.useState({
-    email: "",
-    password: "",
-    showPassword: false
-  });
-
-  const handleChange = prop => event => {
-    setValues({ ...values, [prop]: event.target.value });
-  };
+  const [isShowPassword, setShowPassword] = React.useState(false);
 
   const handleClickShowPassword = () => {
-    setValues({ ...values, showPassword: !values.showPassword });
+    setShowPassword(prevIsShowPassword => !isShowPassword);
   };
 
   const handleMouseDownPassword = event => {
     event.preventDefault();
   };
 
-  const handleSubmit = event => {
-    event.preventDefault();
-    console.log(event.target.email.value);
-  }
-
   return (
-    <Container component="main" maxWidth="xs">
-      <CssBaseline />
-      <div className={classes.paper}>
-        <Typography component="h1" variant="h5">
-          Log in
-        </Typography>
-        <form className={clsx(classes.form)} noValidate onSubmit={handleSubmit}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="email"
-            value={values.email}
-            label="Email Address"
-            name="email"
-            autoComplete="email"
-            autoFocus
-            onChange={handleChange("email")}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="Password"
-            type={values.showPassword ? "text" : "password"}
-            id="password"
-            autoComplete="current-password"
-            value={values.password}
-            onChange={handleChange("password")}
-            inputProps={{ id: "password" }}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    aria-label="toggle password visibility"
-                    onClick={handleClickShowPassword}
-                    onMouseDown={handleMouseDownPassword}
-                  >
-                    {values.showPassword ? <Visibility /> : <VisibilityOff />}
-                  </IconButton>
-                </InputAdornment>
-              )
-            }}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            color="primary"
-            className={classes.submit}
-          >
-            Log in
-          </Button>
-          <Grid container>
-            <Grid item xs>
-              <Link href="#" variant="body2">
-                Forgot password?
-              </Link>
-            </Grid>
-            <Grid item>
-              <Link href="#" variant="body2">
-                {"Don't have an account? Sign Up"}
-              </Link>
-            </Grid>
-          </Grid>
-        </form>
-      </div>
-      <Box mt={8}>
-        <Copyright />
-      </Box>
-    </Container>
+    <div className={clsx(classes.form)}>
+      <Formik
+        initialValues={{ username: "", password: "" }}
+        validate={values => {
+          const errors = {};
+          if (!values.username) {
+            errors.username = "Required";
+          } else if (
+            values.username.length < 1 ||
+            values.username.length > 16
+          ) {
+            errors.username = "Username must be between 1 and 16 characters.";
+          }
+          if (!values.password) {
+            errors.password = "Required";
+          } else if (
+            values.password.length < 8 ||
+            values.password.length > 78
+          ) {
+            errors.password =
+              "Password length must be between 8 and 78 characters.";
+          }
+          return errors;
+        }}
+        onSubmit={async (
+          values,
+          { setSubmitting, setFieldError, setStatus }
+        ) => {
+          const res = await fetch("/app/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              username: values.username,
+              password: values.password
+            })
+          });
+
+          if (
+            (res.headers.get("content-type") || {}).includes("application/json")
+          ) {
+            const resjson = await res.json();
+            if (resjson.error && resjson.error.message) {
+              setFieldError("username", resjson.error.message);
+              setFieldError("password", resjson.error.message);
+            } else if ((resjson.success || {}).message) {
+              setStatus({ loginSuccessMessage: resjson.success.message });
+            }
+          }
+        }}
+      >
+        {({
+          values,
+          errors,
+          status,
+          handleChange,
+          handleSubmit,
+          isSubmitting
+        }) => (
+          <Container component="main" maxWidth="xs">
+            <CssBaseline />
+            <div className={classes.paper}>
+              <Typography component="h1" variant="h5">
+                Log in
+              </Typography>
+              <form className={clsx(classes.form)} onSubmit={handleSubmit}>
+                {(status || {}).generalError && <p>{status.generalError}</p>}
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="username"
+                  value={values.username}
+                  label="Username"
+                  name="username"
+                  autoComplete="username"
+                  autoFocus
+                  onChange={handleChange}
+                  error={!!errors.username}
+                  helperText={errors.username}
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  name="password"
+                  label="Password"
+                  type={isShowPassword ? "text" : "password"}
+                  id="password"
+                  autoComplete="current-password"
+                  value={values.password}
+                  onChange={handleChange}
+                  error={!!errors.password}
+                  helperText={errors.password}
+                  inputProps={{ id: "password" }}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={handleClickShowPassword}
+                          onMouseDown={handleMouseDownPassword}
+                        >
+                          {isShowPassword ? <Visibility /> : <VisibilityOff />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }}
+                />
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  color="primary"
+                  className={classes.submit}
+                >
+                  Log in
+                </Button>
+                {isSubmitting && <LinearProgress />}
+                {(status || {}).loginSuccessMessage && (
+                  <Alert severity="success">
+                    {(status || {}).loginSuccessMessage}
+                  </Alert>
+                )}
+                {/*
+                <Grid container>
+                  <Grid item xs>
+                    <Link href="#" variant="body2">
+                      Forgot password?
+                    </Link>
+                  </Grid>
+                  <Grid item>
+                    <Link href="#" variant="body2">
+                      {"Don't have an account? Sign Up"}
+                    </Link>
+                  </Grid>
+                </Grid>
+                */}
+              </form>
+            </div>
+            <Box mt={8}>
+              <Copyright />
+            </Box>
+          </Container>
+        )}
+      </Formik>
+    </div>
   );
 };
 
