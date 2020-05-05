@@ -1,5 +1,6 @@
 import React from "react";
 import * as storage from "storage/storage";
+import { getCookie } from "helpers/cookies";
 
 import clsx from "clsx";
 
@@ -115,18 +116,20 @@ const Login = props => {
 
           if (
             (
-              ((fetchResult || {}).headers || {}).get("content-type") || {}
+              ((fetchResult || {}).headers || {}).get("content-type") || ""
             ).includes("application/json")
           ) {
             const json = await fetchResult.json();
-            if(json.username) setFieldError("username", json.username.join());
-            else if(json.password) setFieldError("password", json.password.join());
+            if (json.username) setFieldError("username", json.username.join());
+            else if (json.password)
+              setFieldError("password", json.password.join());
             else if ((json.error || {}).message) {
               setFieldError("username", json.error.message);
               setFieldError("password", json.error.message);
             } else if ((json.success || {}).message) {
               setStatus({ loginSuccessMessage: json.success.message });
-              const {message, ...rest} = json.success;
+              props.setAuthToken(getCookie("authToken"));
+              const { message, ...rest } = json.success;
               storage.local.setItem("userInfo", JSON.stringify(rest));
             }
           }
