@@ -13,10 +13,11 @@ import {
   Typography
 } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
-import { useQuery } from "react-query";
+import { useQuery, queryCache } from "react-query";
 import format from "date-fns/format";
 import parseISO from "date-fns/parseISO";
 import isDate from "date-fns/isDate";
+import isEqual from "date-fns/isEqual";
 import { getCookie } from "helpers/cookies";
 
 const useStyles = makeStyles({
@@ -64,7 +65,6 @@ const fetchRecords = async (key, { startDate, endDate, authToken }) => {
     return getJson(result);
   } catch (err) {
     console.log("ERROR:", err);
-    debugger;
     return err;
   }
 };
@@ -74,12 +74,40 @@ const RecordsTable = props => {
 
   const authToken = getCookie("authToken");
 
+  // Keep tabs on old props:
+  const prevStartDateRef = React.useRef();
+  const prevEndDateRef = React.useRef();
+  React.useEffect(
+    () => {
+      prevStartDateRef.current = props.startDate;
+      prevEndDateRef.current = props.endDate;
+    },
+    [props, prevStartDateRef]
+  );
+  const prevStartDate = prevStartDateRef.current;
+  const prevEndDate = prevEndDateRef.current;
+
+  // Normally, react-query re-fetches all queries that were defined within
+  // this component; however, to prevent fetching data for old date
+  // combinations, remove older ones if dates change:
+  React.useEffect(
+    () => {
+      if (
+        !isEqual(props.startDate, prevStartDate) ||
+        !isEqual(props.endDate, prevEndDate)
+      )
+        queryCache.removeQueries(["records", { startDate: prevStartDate }]);
+    },
+    [prevStartDate, prevEndDate, props.startDate, props.endDate]
+  );
+
   const { status, data, error } = useQuery(
     [
       "records",
       { startDate: props.startDate, endDate: props.endDate, authToken }
     ],
-    fetchRecords
+    fetchRecords,
+    { staleTime: 10 * 1000 } // milliseconds
   );
 
   if (status === "loading") {
@@ -109,8 +137,8 @@ const RecordsTable = props => {
             color="textSecondary"
             gutterBottom
           >
-            There is no data to display for these dates, try to change 
-            start and end dates.
+            There is no data to display for these dates, try to change start and
+            end dates.
           </Typography>
         </CardContent>
       </Card>
@@ -119,7 +147,7 @@ const RecordsTable = props => {
 
   return (
     <TableContainer>
-      <Table className={classes.table} aria-label="time records">
+      <Table className={classes.table} aria-label="time records" size="small">
         <TableHead>
           <TableRow>
             <TableCell>Date</TableCell>
