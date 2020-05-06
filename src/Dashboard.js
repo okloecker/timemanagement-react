@@ -8,6 +8,8 @@ import startOfMonth from "date-fns/startOfMonth";
 import endOfMonth from "date-fns/endOfMonth";
 import isBefore from "date-fns/isBefore";
 import isEqual from "date-fns/isEqual";
+import parseISO from "date-fns/parseISO";
+import * as storage from "storage/storage";
 import {
   MuiPickersUtilsProvider,
   KeyboardDatePicker
@@ -27,6 +29,22 @@ const useStyles = makeStyles(theme => ({
   }
 }));
 
+const getInitialValues = _ => ({
+  selectedStartDate: storage.local.getItem("selectedStartDate")
+    ? parseISO(storage.local.getItem("selectedStartDate"))
+    : startOfMonth(new Date()),
+  selectedEndDate: storage.local.getItem("selectedEndDate")
+    ? parseISO(storage.local.getItem("selectedEndDate"))
+    : endOfMonth(new Date())
+});
+
+const handleDateChange = (name, d, setFieldValue) => {
+  if (isDate(d) && d.toString() !== "Invalid Date") {
+    setFieldValue(name, d);
+    storage.local.setItem(name, d.toISOString());
+  }
+};
+
 const Dashboard = props => {
   const classes = useStyles();
 
@@ -35,10 +53,7 @@ const Dashboard = props => {
       <Grid item xs={10}>
         <Paper className={classes.control} elevation={2}>
           <Formik
-            initialValues={{
-              selectedStartDate: startOfMonth(new Date()),
-              selectedEndDate: endOfMonth(new Date())
-            }}
+            initialValues={getInitialValues()}
             validate={values => {
               const errors = {};
               if (
@@ -61,12 +76,10 @@ const Dashboard = props => {
                       margin="normal"
                       id="date-picker-dialog-start"
                       label="Start Date"
-                      format="MM/dd/yyyy"
+                      format="yyyy-MM-dd"
                       value={values.selectedStartDate}
                       onChange={e =>
-                        isDate(e) &&
-                        e.toString() !== "Invalid Date" &&
-                        setFieldValue("selectedStartDate", e)
+                        handleDateChange("selectedStartDate", e, setFieldValue)
                       }
                       error={!!errors.selectedStartDate}
                       helperText={errors.selectedStartDate}
@@ -80,12 +93,10 @@ const Dashboard = props => {
                       margin="normal"
                       id="date-picker-dialog-end"
                       label="End Date"
-                      format="MM/dd/yyyy"
+                      format="yyyy-MM-dd"
                       value={values.selectedEndDate}
                       onChange={e =>
-                        isDate(e) &&
-                        e.toString() !== "Invalid Date" &&
-                        setFieldValue("selectedEndDate", e)
+                        handleDateChange("selectedEndDate", e, setFieldValue)
                       }
                       error={!!errors.selectedEndDate}
                       helperText={errors.selectedEndDate}
