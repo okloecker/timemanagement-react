@@ -150,7 +150,6 @@ const Login = props => {
                 Log in
               </Typography>
               <form className={clsx(classes.form)} onSubmit={handleSubmit}>
-                {(status || {}).generalError && <p>{status.generalError}</p>}
                 <TextField
                   margin="normal"
                   required
