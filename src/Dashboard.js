@@ -49,7 +49,7 @@ const Dashboard = props => {
   const classes = useStyles();
 
   return (
-    <Grid container className={classes.root} justify="center" spacing={2}>
+    <Grid container className={classes.root} justify="center">
       <Grid item xs={10}>
         <Paper className={classes.control} elevation={2}>
           <Formik
