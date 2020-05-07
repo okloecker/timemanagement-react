@@ -1,6 +1,6 @@
 import React from "react";
 import { Formik } from "formik";
-import { Grid, Paper } from "@material-ui/core";
+import { Box, Grid, Paper } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import DateFnsUtils from "@date-io/date-fns";
 import isDate from "date-fns/isDate";
@@ -49,73 +49,79 @@ const Dashboard = props => {
   const classes = useStyles();
 
   return (
-    <Grid container className={classes.root} justify="center">
-      <Grid item xs={10}>
-        <Paper className={classes.control} elevation={2}>
-          <Formik
-            initialValues={getInitialValues()}
-            validate={values => {
-              const errors = {};
-              if (
-                isDate(values.selectedStartDate) &&
-                isDate(values.selectedEndDate) &&
-                !isBefore(values.selectedStartDate, values.selectedEndDate) &&
-                !isEqual(values.selectedStartDate, values.selectedEndDate)
-              ) {
-                errors.selectedEndDate =
-                  "End date must be at or after start date.";
-              }
-              return errors;
-            }}
-          >
-            {({ values, errors, setFieldValue }) => (
-              <MuiPickersUtilsProvider utils={DateFnsUtils}>
-                <Grid container justify="center" spacing={5}>
-                  <Grid item>
-                    <KeyboardDatePicker
-                      margin="normal"
-                      id="date-picker-dialog-start"
-                      label="Start Date"
-                      format="yyyy-MM-dd"
-                      value={values.selectedStartDate}
-                      onChange={e =>
-                        handleDateChange("selectedStartDate", e, setFieldValue)
-                      }
-                      error={!!errors.selectedStartDate}
-                      helperText={errors.selectedStartDate}
-                      KeyboardButtonProps={{
-                        "aria-label": "change start date"
-                      }}
-                    />
+    <Box m={2}> {/* add some margin to component */}
+      <Grid container className={classes.root} justify="center">
+        <Grid item xs={10}>
+          <Paper className={classes.control} elevation={2}>
+            <Formik
+              initialValues={getInitialValues()}
+              validate={values => {
+                const errors = {};
+                if (
+                  isDate(values.selectedStartDate) &&
+                  isDate(values.selectedEndDate) &&
+                  !isBefore(values.selectedStartDate, values.selectedEndDate) &&
+                  !isEqual(values.selectedStartDate, values.selectedEndDate)
+                ) {
+                  errors.selectedEndDate =
+                    "End date must be at or after start date.";
+                }
+                return errors;
+              }}
+            >
+              {({ values, errors, setFieldValue }) => (
+                <MuiPickersUtilsProvider utils={DateFnsUtils}>
+                  <Grid container justify="center" spacing={5}>
+                    <Grid item>
+                      <KeyboardDatePicker
+                        margin="normal"
+                        id="date-picker-dialog-start"
+                        label="Start Date"
+                        format="yyyy-MM-dd"
+                        value={values.selectedStartDate}
+                        onChange={e =>
+                          handleDateChange(
+                            "selectedStartDate",
+                            e,
+                            setFieldValue
+                          )
+                        }
+                        error={!!errors.selectedStartDate}
+                        helperText={errors.selectedStartDate}
+                        KeyboardButtonProps={{
+                          "aria-label": "change start date"
+                        }}
+                      />
+                    </Grid>
+                    <Grid item>
+                      <KeyboardDatePicker
+                        margin="normal"
+                        id="date-picker-dialog-end"
+                        label="End Date"
+                        format="yyyy-MM-dd"
+                        value={values.selectedEndDate}
+                        onChange={e =>
+                          handleDateChange("selectedEndDate", e, setFieldValue)
+                        }
+                        error={!!errors.selectedEndDate}
+                        helperText={errors.selectedEndDate}
+                        KeyboardButtonProps={{
+                          "aria-label": "change end date"
+                        }}
+                      />
+                    </Grid>
                   </Grid>
-                  <Grid item>
-                    <KeyboardDatePicker
-                      margin="normal"
-                      id="date-picker-dialog-end"
-                      label="End Date"
-                      format="yyyy-MM-dd"
-                      value={values.selectedEndDate}
-                      onChange={e =>
-                        handleDateChange("selectedEndDate", e, setFieldValue)
-                      }
-                      error={!!errors.selectedEndDate}
-                      helperText={errors.selectedEndDate}
-                      KeyboardButtonProps={{
-                        "aria-label": "change end date"
-                      }}
-                    />
-                  </Grid>
-                </Grid>
-                <RecordsTable
-                  startDate={values.selectedStartDate}
-                  endDate={values.selectedEndDate}
-                />
-              </MuiPickersUtilsProvider>
-            )}
-          </Formik>
-        </Paper>
+                  <RecordsTable
+                    startDate={values.selectedStartDate}
+                    endDate={values.selectedEndDate}
+                  />
+                </MuiPickersUtilsProvider>
+              )}
+            </Formik>
+          </Paper>
+        </Grid>
       </Grid>
-    </Grid>
+    </Box>
   );
 };
 
