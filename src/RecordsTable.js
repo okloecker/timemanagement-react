@@ -13,11 +13,10 @@ import {
   Typography
 } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
-import { useQuery, queryCache } from "react-query";
+import { useQuery } from "react-query";
 import format from "date-fns/format";
 import parseISO from "date-fns/parseISO";
 import isDate from "date-fns/isDate";
-import isEqual from "date-fns/isEqual";
 import { getCookie } from "helpers/cookies";
 
 const useStyles = makeStyles({
@@ -43,7 +42,10 @@ const getJson = async data => {
   } else return "NO_JSON";
 };
 
-const fetchRecords = async (key, { startDate, endDate, authToken }) => {
+const fetchRecords = async (
+  key,
+  { startDate, endDate, contains, authToken }
+) => {
   try {
     const from = format(
       isDate(startDate) ? startDate : parseISO(startDate),
@@ -54,7 +56,9 @@ const fetchRecords = async (key, { startDate, endDate, authToken }) => {
       "yyyy-MM-dd"
     );
     const result = await fetch(
-      `/app/timerecords?dateFrom=${from}&dateTo=${to}`,
+      `/app/timerecords?dateFrom=${from}&dateTo=${to}${
+        contains ? "&contains=" + contains : ""
+      }`,
       {
         headers: {
           "Content-Type": "application/json",
@@ -74,40 +78,18 @@ const RecordsTable = props => {
 
   const authToken = getCookie("authToken");
 
-  // Keep tabs on old props:
-  const prevStartDateRef = React.useRef();
-  const prevEndDateRef = React.useRef();
-  React.useEffect(
-    () => {
-      prevStartDateRef.current = props.startDate;
-      prevEndDateRef.current = props.endDate;
-    },
-    [props, prevStartDateRef]
-  );
-  const prevStartDate = prevStartDateRef.current;
-  const prevEndDate = prevEndDateRef.current;
-
-  // Normally, react-query re-fetches all queries that were defined within
-  // this component; however, to prevent fetching data for old date
-  // combinations, remove older ones if dates change:
-  React.useEffect(
-    () => {
-      if (
-        !isEqual(props.startDate, prevStartDate) ||
-        !isEqual(props.endDate, prevEndDate)
-      )
-        queryCache.removeQueries(["records", { startDate: prevStartDate }]);
-    },
-    [prevStartDate, prevEndDate, props.startDate, props.endDate]
-  );
-
   const { status, data, error } = useQuery(
     [
       "records",
-      { startDate: props.startDate, endDate: props.endDate, authToken }
+      {
+        startDate: props.startDate,
+        endDate: props.endDate,
+        authToken,
+        contains: props.searchText
+      }
     ],
     fetchRecords,
-    { staleTime: 10 * 1000 } // milliseconds
+    { staleTime: 60 * 1000 } // milliseconds
   );
 
   if (status === "loading") {
@@ -156,17 +138,35 @@ const RecordsTable = props => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {data.map(row => (
-            <TableRow key={row.id} row={row}>
-              <TableCell>{row.date}</TableCell>
-              <TableCell align="right">{row.timeString}</TableCell>
-              <TableCell>{row.note}</TableCell>
+          {data.length ? (
+            data.map(row => (
+              <TableRow key={row.id} row={row}>
+                <TableCell>{row.date}</TableCell>
+                <TableCell align="right">{row.timeString}</TableCell>
+                <TableCell>{row.note}</TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={3}>
+                <Card className={classes.root}>
+                  <CardContent>
+                    <Typography
+                      className={classes.title}
+                      color="textSecondary"
+                      gutterBottom
+                    >
+                      There is no data to display for this search text.
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </TableCell>
             </TableRow>
-          ))}
+          )}
         </TableBody>
       </Table>
     </TableContainer>
   );
 };
 
-export default RecordsTable;
+export default React.memo(RecordsTable);
