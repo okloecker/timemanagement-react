@@ -25,6 +25,8 @@ import {
 } from "@material-ui/pickers";
 import RecordsTable from "RecordsTable";
 
+const DEBOUNCE_TIMEOUT_MS = 500;
+
 const useStyles = makeStyles(theme => ({
   root: {
     flexGrow: 1
@@ -38,25 +40,42 @@ const useStyles = makeStyles(theme => ({
   }
 }));
 
-const getInitialValues = _ => ({
-  selectedStartDate: storage.local.getItem("selectedStartDate")
-    ? parseISO(storage.local.getItem("selectedStartDate"))
-    : startOfMonth(new Date()),
-  selectedEndDate: storage.local.getItem("selectedEndDate")
-    ? parseISO(storage.local.getItem("selectedEndDate"))
-    : endOfMonth(new Date()),
-  searchText: storage.local.getItem("searchText")
-});
+const getStorageItem = name => storage.local.getItem(name);
+const setStorageItem = (name, value) => storage.local.setItem(name, value);
 
-const handleDateChange = (name, d, setFieldValue) => {
-  if (isDate(d) && d.toString() !== "Invalid Date") {
-    setFieldValue(name, d);
-    storage.local.setItem(name, d.toISOString());
-  }
-};
+const getInitialValues = _ => ({
+  selectedStartDate: getStorageItem("selectedStartDate")
+    ? parseISO(getStorageItem("selectedStartDate"))
+    : startOfMonth(new Date()),
+  selectedEndDate: getStorageItem("selectedEndDate")
+    ? parseISO(getStorageItem("selectedEndDate"))
+    : endOfMonth(new Date()),
+  searchText: getStorageItem("searchText") || ""
+});
 
 const Dashboard = props => {
   const classes = useStyles();
+
+  const [searchTimeout, setSearchTimeout] = React.useState(null);
+  const [formValues, setFormValues] = React.useState(getInitialValues());
+  // changes searchText prop for RecordsTable only when there's no keyboard input for 750ms
+  const debounceSearchTextChange = (text="", setFieldValue) => {
+    setFieldValue("searchText", text);
+    if (searchTimeout) clearTimeout(searchTimeout);
+    setSearchTimeout(
+      setTimeout(() => {
+        setFormValues({ ...formValues, searchText: text });
+      }, DEBOUNCE_TIMEOUT_MS)
+    );
+  };
+
+  const handleDateChange = (name, d, setFieldValue) => {
+    if (isDate(d) && d.toString() !== "Invalid Date") {
+      setFieldValue(name, d);
+      setStorageItem(name, d.toISOString());
+      setFormValues({ ...formValues, [name]: d });
+    }
+  };
 
   const handleMouseDownSearch = event => {
     event.preventDefault();
@@ -64,10 +83,9 @@ const Dashboard = props => {
 
   return (
     <Box m={2}>
-      {" "}
       {/* add some margin to component */}
       <Grid container className={classes.root} justify="center">
-        <Grid item xs={10}>
+        <Grid item xs={12} md={11} lg={10}>
           <Paper className={classes.control} elevation={2}>
             <Formik
               initialValues={getInitialValues()}
@@ -83,7 +101,7 @@ const Dashboard = props => {
                     "End date must be at or after start date.";
                 }
                 if (Object.keys(errors === 0))
-                  storage.local.setItem("searchText", values.searchText);
+                  setStorageItem("searchText", values.searchText);
                 return errors;
               }}
             >
@@ -135,7 +153,12 @@ const Dashboard = props => {
                         label="Search"
                         id="searchbox"
                         value={values.searchText}
-                        onChange={handleChange}
+                        onChange={e =>
+                          debounceSearchTextChange(
+                            e.target.value,
+                            setFieldValue
+                          )
+                        }
                         inputProps={{ id: "searchText" }}
                         InputProps={{
                           endAdornment: (
@@ -143,13 +166,18 @@ const Dashboard = props => {
                               {values.searchText && (
                                 <IconButton
                                   aria-label="clear search"
-                                  onClick={e => setFieldValue("searchText", "")}
+                                  onClick={e =>
+                                    debounceSearchTextChange(
+                                      e.target.value,
+                                      setFieldValue
+                                    )
+                                  }
                                   onMouseDown={handleMouseDownSearch}
                                 >
                                   <Clear />
                                 </IconButton>
                               )}
-                              <IconButton aria-label="search">
+                              <IconButton aria-label="search" disabled>
                                 <Search />
                               </IconButton>
                             </InputAdornment>
@@ -159,9 +187,9 @@ const Dashboard = props => {
                     </Grid>
                   </Grid>
                   <RecordsTable
-                    startDate={values.selectedStartDate}
-                    endDate={values.selectedEndDate}
-                    searchText={values.searchText}
+                    startDate={formValues.selectedStartDate}
+                    endDate={formValues.selectedEndDate}
+                    searchText={formValues.searchText}
                   />
                 </MuiPickersUtilsProvider>
               )}
