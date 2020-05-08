@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Box,
   Card,
   CardContent,
   LinearProgress,
@@ -93,7 +94,11 @@ const RecordsTable = props => {
   );
 
   if (status === "loading") {
-    return <LinearProgress />;
+    return (
+      <Box m={2}>
+        <LinearProgress />
+      </Box>
+    );
   }
 
   if (status === "error") {
@@ -128,44 +133,46 @@ const RecordsTable = props => {
   }
 
   return (
-    <TableContainer>
-      <Table className={classes.table} aria-label="time records" size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Date</TableCell>
-            <TableCell align="right">Hours</TableCell>
-            <TableCell>Note</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {data.length ? (
-            data.map(row => (
-              <TableRow key={row.id} row={row}>
-                <TableCell>{row.date}</TableCell>
-                <TableCell align="right">{row.timeString}</TableCell>
-                <TableCell>{row.note}</TableCell>
-              </TableRow>
-            ))
-          ) : (
+    <Box m={2}>
+      <TableContainer>
+        <Table className={classes.table} aria-label="time records" size="small">
+          <TableHead>
             <TableRow>
-              <TableCell colSpan={3}>
-                <Card className={classes.root}>
-                  <CardContent>
-                    <Typography
-                      className={classes.title}
-                      color="textSecondary"
-                      gutterBottom
-                    >
-                      There is no data to display for this search text.
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </TableCell>
+              <TableCell>Date</TableCell>
+              <TableCell align="right">Hours</TableCell>
+              <TableCell>Note</TableCell>
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </TableContainer>
+          </TableHead>
+          <TableBody>
+            {data.length ? (
+              data.map(row => (
+                <TableRow key={row.id} row={row}>
+                  <TableCell>{row.date}</TableCell>
+                  <TableCell align="right">{row.timeString}</TableCell>
+                  <TableCell>{row.note}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={3}>
+                  <Card className={classes.root}>
+                    <CardContent>
+                      <Typography
+                        className={classes.title}
+                        color="textSecondary"
+                        gutterBottom
+                      >
+                        There is no data to display for this search text.
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
 };
 

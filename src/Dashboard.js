@@ -59,7 +59,7 @@ const Dashboard = props => {
   const [searchTimeout, setSearchTimeout] = React.useState(null);
   const [formValues, setFormValues] = React.useState(getInitialValues());
   // changes searchText prop for RecordsTable only when there's no keyboard input for 750ms
-  const debounceSearchTextChange = (text="", setFieldValue) => {
+  const debounceSearchTextChange = (text = "", setFieldValue) => {
     setFieldValue("searchText", text);
     if (searchTimeout) clearTimeout(searchTimeout);
     setSearchTimeout(
@@ -108,83 +108,93 @@ const Dashboard = props => {
               {({ values, errors, handleChange, setFieldValue }) => (
                 <MuiPickersUtilsProvider utils={DateFnsUtils}>
                   <Grid container justify="center" spacing={5}>
-                    <Grid item>
-                      <KeyboardDatePicker
-                        margin="normal"
-                        id="date-picker-dialog-start"
-                        label="Start Date"
-                        format="yyyy-MM-dd"
-                        value={values.selectedStartDate}
-                        onChange={e =>
-                          handleDateChange(
-                            "selectedStartDate",
-                            e,
-                            setFieldValue
-                          )
-                        }
-                        error={!!errors.selectedStartDate}
-                        helperText={errors.selectedStartDate}
-                        KeyboardButtonProps={{
-                          "aria-label": "change start date"
-                        }}
-                      />
-                    </Grid>
-                    <Grid item>
-                      <KeyboardDatePicker
-                        margin="normal"
-                        id="date-picker-dialog-end"
-                        label="End Date"
-                        format="yyyy-MM-dd"
-                        value={values.selectedEndDate}
-                        onChange={e =>
-                          handleDateChange("selectedEndDate", e, setFieldValue)
-                        }
-                        error={!!errors.selectedEndDate}
-                        helperText={errors.selectedEndDate}
-                        KeyboardButtonProps={{
-                          "aria-label": "change end date"
-                        }}
-                      />
-                    </Grid>
-                    <Grid item>
-                      <TextField
-                        margin="normal"
-                        name="searchText"
-                        label="Search"
-                        id="searchbox"
-                        value={values.searchText}
-                        onChange={e =>
-                          debounceSearchTextChange(
-                            e.target.value,
-                            setFieldValue
-                          )
-                        }
-                        inputProps={{ id: "searchText" }}
-                        InputProps={{
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              {values.searchText && (
-                                <IconButton
-                                  aria-label="clear search"
-                                  onClick={e =>
-                                    debounceSearchTextChange(
-                                      e.target.value,
-                                      setFieldValue
-                                    )
-                                  }
-                                  onMouseDown={handleMouseDownSearch}
-                                >
-                                  <Clear />
+                    <Box m={2} minWidth={170} width={"10%"}>
+                      <Grid item>
+                        <KeyboardDatePicker
+                          margin="normal"
+                          id="date-picker-dialog-start"
+                          label="Start Date"
+                          format="yyyy-MM-dd"
+                          value={values.selectedStartDate}
+                          onChange={e =>
+                            handleDateChange(
+                              "selectedStartDate",
+                              e,
+                              setFieldValue
+                            )
+                          }
+                          error={!!errors.selectedStartDate}
+                          helperText={errors.selectedStartDate}
+                          KeyboardButtonProps={{
+                            "aria-label": "change start date"
+                          }}
+                        />
+                      </Grid>
+                    </Box>
+                    <Box m={2} minWidth={170} width={"10%"}>
+                      <Grid item>
+                        <KeyboardDatePicker
+                          margin="normal"
+                          id="date-picker-dialog-end"
+                          label="End Date"
+                          format="yyyy-MM-dd"
+                          value={values.selectedEndDate}
+                          onChange={e =>
+                            handleDateChange(
+                              "selectedEndDate",
+                              e,
+                              setFieldValue
+                            )
+                          }
+                          error={!!errors.selectedEndDate}
+                          helperText={errors.selectedEndDate}
+                          KeyboardButtonProps={{
+                            "aria-label": "change end date"
+                          }}
+                        />
+                      </Grid>
+                    </Box>
+                    <Box m={2}>
+                      <Grid item>
+                        <TextField
+                          margin="normal"
+                          name="searchText"
+                          label="Search"
+                          id="searchbox"
+                          value={values.searchText}
+                          onChange={e =>
+                            debounceSearchTextChange(
+                              e.target.value,
+                              setFieldValue
+                            )
+                          }
+                          inputProps={{ id: "searchText" }}
+                          InputProps={{
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                {values.searchText && (
+                                  <IconButton
+                                    aria-label="clear search"
+                                    onClick={e =>
+                                      debounceSearchTextChange(
+                                        e.target.value,
+                                        setFieldValue
+                                      )
+                                    }
+                                    onMouseDown={handleMouseDownSearch}
+                                  >
+                                    <Clear />
+                                  </IconButton>
+                                )}
+                                <IconButton aria-label="search" disabled>
+                                  <Search />
                                 </IconButton>
-                              )}
-                              <IconButton aria-label="search" disabled>
-                                <Search />
-                              </IconButton>
-                            </InputAdornment>
-                          )
-                        }}
-                      />
-                    </Grid>
+                              </InputAdornment>
+                            )
+                          }}
+                        />
+                      </Grid>
+                    </Box>
                   </Grid>
                   <RecordsTable
                     startDate={formValues.selectedStartDate}
