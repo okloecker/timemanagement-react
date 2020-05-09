@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   IconButton,
-  InputAdornment,
   LinearProgress,
   Snackbar,
   Table,
@@ -19,8 +18,9 @@ import {
   Typography
 } from "@material-ui/core";
 import Alert from "@material-ui/lab/Alert";
-import Check from "@material-ui/icons/Check";
 import Close from "@material-ui/icons/Close";
+import Done from "@material-ui/icons/Done";
+import Edit from "@material-ui/icons/Edit";
 import { makeStyles } from "@material-ui/core/styles";
 import { useQuery, useMutation, queryCache } from "react-query";
 import format from "date-fns/format";
@@ -72,7 +72,12 @@ const fetchRecords = async (
     } else return result.data;
   } catch (err) {
     console.log("ERROR:", err);
-    return err;
+    return {
+      error: {
+        status: err.response.status,
+        statusText: `${err.response.statusText}  ${err.response.data}`
+      }
+    };
   }
 };
 
@@ -92,11 +97,15 @@ const RecordsTable = props => {
   const authToken = getCookie("authToken");
 
   const [editRow, setEditRow] = React.useState();
-  const handleCellClick = (name, id) => {
-    setEditRow(id);
-  };
 
   const [globalError, setGlobalError] = React.useState();
+
+  React.useEffect(
+    () => {
+      setGlobalError(null);
+    },
+    [editRow]
+  );
 
   const { status, data, error } = useQuery(
     [
@@ -109,7 +118,7 @@ const RecordsTable = props => {
       }
     ],
     fetchRecords,
-    { staleTime: 60 * 1000 } // milliseconds
+    { staleTime: 10 * 1000 } // milliseconds
   );
 
   // update record with new data, optimistically showing new data in table, but
@@ -133,7 +142,11 @@ const RecordsTable = props => {
       return () => queryCache.setQueryData(key, previousData); // the rollback function
     },
     onError: (err, row, rollback) => {
-      setGlobalError(`Update failed with error: ${err}`);
+      const reason = err.response.data.date
+        ? err.response.data.date.join(";")
+        : null;
+      setGlobalError(`Update failed with error: ${err} ${reason || ""}`);
+      debugger;
       rollback();
     }
   });
@@ -181,11 +194,11 @@ const RecordsTable = props => {
     );
   }
 
-  const handleRowUpdate = async ({ row, name, value }) =>
+  const handleRowUpdate = async ({ row, newRow }) =>
     await mutate({
       row: {
         ...row,
-        [name]: value
+        ...newRow
       },
       authToken
     });
@@ -196,6 +209,7 @@ const RecordsTable = props => {
         <Table className={classes.table} aria-label="time records" size="small">
           <TableHead>
             <TableRow>
+              <TableCell>Edit</TableCell>
               <TableCell>Date</TableCell>
               <TableCell align="right">Hours</TableCell>
               <TableCell>Note</TableCell>
@@ -204,26 +218,18 @@ const RecordsTable = props => {
           <TableBody>
             {data.length ? (
               data.map(row => (
-                <TableRow key={row.id} row={row}>
-                  <TableCell>{row.date}</TableCell>
-                  <TableCell align="right">{row.timeString}</TableCell>
-                  <TableCell onClick={_ => handleCellClick("note", row.id)}>
-                    {editRow === row.id ? (
-                      <EditableNote
-                        fieldName={"Note"}
-                        fieldValue={row.note}
-                        onUpdate={v => {
-                          console.log("new value", v);
-                          if (v !== row.note)
-                            handleRowUpdate({ row, name: "note", value: v });
-                          setEditRow(null);
-                        }}
-                      />
-                    ) : (
-                      row.note
-                    )}
-                  </TableCell>
-                </TableRow>
+                <EditableTableRow
+                  key={row.id}
+                  editing={row.id === editRow}
+                  row={row}
+                  setEditing={setEditRow}
+                  onUpdate={v => {
+                    console.log("new value", v);
+                    if (v !== row.date)
+                      handleRowUpdate({ row, newRow: v });
+                    setEditRow(null);
+                  }}
+                />
               ))
             ) : (
               <TableRow>
@@ -249,11 +255,18 @@ const RecordsTable = props => {
   );
 };
 
-const EditableNote = ({ fieldName, fieldValue, onUpdate }) => {
+const EditableTableRow = ({ row, editing, setEditing, onUpdate }) => {
   return (
     <Formik
-      initialValues={{ [fieldName]: fieldValue }}
-      onSubmit={(values, actions) => onUpdate(values[fieldName])}
+      initialValues={{
+        date: row.date,
+        timeString: row.timeString,
+        note: row.note
+      }}
+      onSubmit={(values, actions) => {
+        values.canceled ? setEditing(null) : onUpdate(values);
+        actions.resetForm();
+      }}
     >
       {({
         values,
@@ -264,48 +277,93 @@ const EditableNote = ({ fieldName, fieldValue, onUpdate }) => {
         handleChange,
         setFieldValue
       }) => (
-        <TextField
-          fullWidth
-          margin="normal"
-          name={fieldName}
-          label={`Edit ${fieldName}`}
-          id={fieldName}
-          value={values[fieldName]}
-          onChange={e => {
-            handleBlur(e);
-            handleChange(e);
-          }}
-          inputProps={{ id: fieldName }}
-          InputProps={{
-            endAdornment: (
-              <>
-                <InputAdornment position="start">
-                  {touched[fieldName] && (
-                    <IconButton aria-label="save" onClick={handleSubmit}>
-                      <Check />
-                    </IconButton>
-                  )}
-                </InputAdornment>
-                <InputAdornment position="start">
-                  {touched[fieldName] && (
-                    <IconButton
-                      aria-label="cancel"
-                      onClick={e => {
-                        setFieldValue(fieldName, fieldValue);
-                        handleSubmit(e);
-                      }}
-                    >
-                      <Close />
-                    </IconButton>
-                  )}
-                </InputAdornment>
-              </>
-            )
-          }}
-        />
+        <TableRow>
+          {/* Edit/Cancel icons */}
+          <TableCell>
+            {/*TODO: 
+            use https://material-ui.com/customization/breakpoints/ for mobile
+            */}
+            {editing ? (
+              <IconButton aria-label="edit" onClick={handleSubmit}>
+                <Done />
+              </IconButton>
+            ) : (
+              <IconButton aria-label="edit" onClick={_ => setEditing(row.id)}>
+                <Edit />
+              </IconButton>
+            )}
+            {editing && (
+              <IconButton
+                aria-label="edit"
+                onClick={_ => {
+                  setFieldValue("canceled", true);
+                  handleSubmit();
+                }}
+              >
+                <Close />
+              </IconButton>
+            )}
+          </TableCell>
+          {/* Date field */}
+          <TableCell>
+            <EditableTextField
+              editing={editing}
+              name={"date"}
+              value={values.date}
+              rovalue={row.date}
+              onChange={handleChange}
+              label="Date"
+            />
+          </TableCell>
+          {/* Time field */}
+          <TableCell align="right">
+            <EditableTextField
+              editing={editing}
+              name={"timeString"}
+              value={values.timeString}
+              rovalue={row.timeString}
+              onChange={handleChange}
+              label="Hours"
+            />
+          </TableCell>
+          {/* Note field */}
+          <TableCell>
+            <EditableTextField
+              editing={editing}
+              name={"note"}
+              value={values.note}
+              rovalue={row.note}
+              onChange={handleChange}
+              label="Note"
+            />
+          </TableCell>
+        </TableRow>
       )}
     </Formik>
   );
 };
+
+const EditableTextField = ({
+  editing,
+  name,
+  value,
+  rovalue,
+  label,
+  onChange
+}) =>
+  editing ? (
+    <TextField
+      margin="normal"
+      name={name}
+      label={label}
+      id={name}
+      value={value}
+      onChange={onChange}
+      multiline={name === "note"}
+      fullWidth
+    />
+  ) : (
+    rovalue.replace(/\n\n/g, " ↵ ")
+  );
 
 export default React.memo(RecordsTable);
