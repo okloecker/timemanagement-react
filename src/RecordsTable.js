@@ -1,8 +1,12 @@
 import React from "react";
+import { Formik } from "formik";
+import axios from "axios";
 import {
   Box,
   Card,
   CardContent,
+  IconButton,
+  InputAdornment,
   LinearProgress,
   Snackbar,
   Table,
@@ -11,10 +15,14 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography
 } from "@material-ui/core";
+import Alert from "@material-ui/lab/Alert";
+import Check from "@material-ui/icons/Check";
+import Close from "@material-ui/icons/Close";
 import { makeStyles } from "@material-ui/core/styles";
-import { useQuery } from "react-query";
+import { useQuery, useMutation, queryCache } from "react-query";
 import format from "date-fns/format";
 import parseISO from "date-fns/parseISO";
 import isDate from "date-fns/isDate";
@@ -33,16 +41,6 @@ const useStyles = makeStyles({
   }
 });
 
-const getJson = async data => {
-  if (
-    (((data || {}).headers || {}).get("content-type") || "").includes(
-      "application/json"
-    )
-  ) {
-    return await data.json();
-  } else return "NO_JSON";
-};
-
 const fetchRecords = async (
   key,
   { startDate, endDate, contains, authToken }
@@ -56,7 +54,7 @@ const fetchRecords = async (
       isDate(endDate) ? endDate : parseISO(endDate),
       "yyyy-MM-dd"
     );
-    const result = await fetch(
+    const result = await axios(
       `/app/timerecords?dateFrom=${from}&dateTo=${to}${
         contains ? "&contains=" + contains : ""
       }`,
@@ -67,17 +65,38 @@ const fetchRecords = async (
         }
       }
     );
-    return getJson(result);
+    if (result.status >= 400) {
+      return {
+        error: { status: result.status, statusText: result.statusText }
+      };
+    } else return result.data;
   } catch (err) {
     console.log("ERROR:", err);
     return err;
   }
 };
 
+const putRecord = ({ row, authToken }) =>
+  axios(`/app/timerecord/${row.id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "X-AUTH-TOKEN": authToken
+    },
+    data: row
+  });
+
 const RecordsTable = props => {
   const classes = useStyles();
 
   const authToken = getCookie("authToken");
+
+  const [editRow, setEditRow] = React.useState();
+  const handleCellClick = (name, id) => {
+    setEditRow(id);
+  };
+
+  const [globalError, setGlobalError] = React.useState();
 
   const { status, data, error } = useQuery(
     [
@@ -92,6 +111,32 @@ const RecordsTable = props => {
     fetchRecords,
     { staleTime: 60 * 1000 } // milliseconds
   );
+
+  // update record with new data, optimistically showing new data in table, but
+  // rolling back on error
+  const [mutate] = useMutation(putRecord, {
+    onMutate: ({ row: newRow }) => {
+      const key = [
+        "records",
+        {
+          startDate: props.startDate,
+          endDate: props.endDate,
+          authToken,
+          contains: props.searchText
+        }
+      ];
+      const previousData = queryCache.getQueryData(key);
+      queryCache.setQueryData(
+        key,
+        previousData.map(r => (r.id === newRow.id ? newRow : r))
+      );
+      return () => queryCache.setQueryData(key, previousData); // the rollback function
+    },
+    onError: (err, row, rollback) => {
+      setGlobalError(`Update failed with error: ${err}`);
+      rollback();
+    }
+  });
 
   if (status === "loading") {
     return (
@@ -115,7 +160,11 @@ const RecordsTable = props => {
     );
   }
 
-  if (!data || !data.length) {
+  if (data && data.error) {
+    return <Alert severity="error">{data.error.statusText}</Alert>;
+  }
+
+  if (!data || !data || !data.length) {
     return (
       <Card className={classes.root}>
         <CardContent>
@@ -132,8 +181,17 @@ const RecordsTable = props => {
     );
   }
 
+  const handleRowUpdate = async ({ row, name, value }) =>
+    await mutate({
+      row: {
+        ...row,
+        [name]: value
+      },
+      authToken
+    });
   return (
     <Box m={2}>
+      {globalError && <Alert severity="error">{globalError}</Alert>}
       <TableContainer>
         <Table className={classes.table} aria-label="time records" size="small">
           <TableHead>
@@ -149,7 +207,22 @@ const RecordsTable = props => {
                 <TableRow key={row.id} row={row}>
                   <TableCell>{row.date}</TableCell>
                   <TableCell align="right">{row.timeString}</TableCell>
-                  <TableCell>{row.note}</TableCell>
+                  <TableCell onClick={_ => handleCellClick("note", row.id)}>
+                    {editRow === row.id ? (
+                      <EditableNote
+                        fieldName={"Note"}
+                        fieldValue={row.note}
+                        onUpdate={v => {
+                          console.log("new value", v);
+                          if (v !== row.note)
+                            handleRowUpdate({ row, name: "note", value: v });
+                          setEditRow(null);
+                        }}
+                      />
+                    ) : (
+                      row.note
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
@@ -173,6 +246,65 @@ const RecordsTable = props => {
         </Table>
       </TableContainer>
     </Box>
+  );
+};
+
+const EditableNote = ({ fieldName, fieldValue, onUpdate }) => {
+  return (
+    <Formik
+      initialValues={{ [fieldName]: fieldValue }}
+      onSubmit={(values, actions) => onUpdate(values[fieldName])}
+    >
+      {({
+        values,
+        errors,
+        touched,
+        handleBlur,
+        handleSubmit,
+        handleChange,
+        setFieldValue
+      }) => (
+        <TextField
+          fullWidth
+          margin="normal"
+          name={fieldName}
+          label={`Edit ${fieldName}`}
+          id={fieldName}
+          value={values[fieldName]}
+          onChange={e => {
+            handleBlur(e);
+            handleChange(e);
+          }}
+          inputProps={{ id: fieldName }}
+          InputProps={{
+            endAdornment: (
+              <>
+                <InputAdornment position="start">
+                  {touched[fieldName] && (
+                    <IconButton aria-label="save" onClick={handleSubmit}>
+                      <Check />
+                    </IconButton>
+                  )}
+                </InputAdornment>
+                <InputAdornment position="start">
+                  {touched[fieldName] && (
+                    <IconButton
+                      aria-label="cancel"
+                      onClick={e => {
+                        setFieldValue(fieldName, fieldValue);
+                        handleSubmit(e);
+                      }}
+                    >
+                      <Close />
+                    </IconButton>
+                  )}
+                </InputAdornment>
+              </>
+            )
+          }}
+        />
+      )}
+    </Formik>
   );
 };
 
