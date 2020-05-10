@@ -15,6 +15,7 @@ import Clear from "@material-ui/icons/Clear";
 import Add from "@material-ui/icons/Add";
 import DateFnsUtils from "@date-io/date-fns";
 import isDate from "date-fns/isDate";
+import isValid from "date-fns/isValid";
 import startOfMonth from "date-fns/startOfMonth";
 import endOfMonth from "date-fns/endOfMonth";
 import isBefore from "date-fns/isBefore";
@@ -72,7 +73,7 @@ const Dashboard = props => {
   };
 
   const handleDateChange = (name, d, setFieldValue) => {
-    if (isDate(d) && d.toString() !== "Invalid Date") {
+    if (isValid(d)) {
       setFieldValue(name, d);
       setStorageItem(name, d.toISOString());
       setFormValues({ ...formValues, [name]: d });
