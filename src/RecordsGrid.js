@@ -33,7 +33,7 @@ const useStyles = makeStyles({
   },
   editCell: {
     backgroundColor: "#ffffe4",
-    paddingTop:"8px",
+    paddingTop: "8px"
   }
 });
 
@@ -96,13 +96,6 @@ const RecordsGrid = props => {
 
   const [globalError, setGlobalError] = React.useState();
 
-  React.useEffect(
-    () => {
-      setGlobalError(null);
-    },
-    [editRow]
-  );
-
   const { status, data, error } = useQuery(
     [
       "records",
@@ -135,15 +128,21 @@ const RecordsGrid = props => {
         key,
         previousData.map(r => (r.id === newRow.id ? newRow : r))
       );
+      setGlobalError(null);
+      setEditRow(null);
       return () => queryCache.setQueryData(key, previousData); // the rollback function
     },
-    onError: (err, row, rollback) => {
-      const reason = err.response.data.date
-        ? err.response.data.date.join(";")
-        : null;
-      setGlobalError(`Update failed with error: ${err} ${reason || ""}`);
-      debugger;
+    onError: (err, { row }, rollback) => {
+      const reasons = err.response.data
+        ? Object.keys(err.response.data).reduce(
+            (acc, k) => acc.concat(err.response.data[k].flat()),
+            []
+          )
+        : [];
       rollback();
+      // user must correct error or reset values
+      setEditRow(row.id);
+      setGlobalError({ message: `Update failed with error: ${err}`, reasons });
     }
   });
 
@@ -201,7 +200,16 @@ const RecordsGrid = props => {
 
   return (
     <Box m={2}>
-      {globalError && <Alert severity="error">{globalError}</Alert>}
+      {globalError && globalError.reasons && (
+        <Alert severity="error">
+          {globalError.message}
+          <ul>
+            {globalError.reasons.map(r => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        </Alert>
+      )}
       <Grid container>
         {data.length ? (
           data.map(row => (
@@ -211,9 +219,8 @@ const RecordsGrid = props => {
               row={row}
               setEditing={setEditRow}
               onUpdate={v => {
-                console.log("new value", v);
                 if (v !== row.date) handleRowUpdate({ row, newRow: v });
-                setEditRow(null);
+                // setEditRow(null);
               }}
               classes={classes}
             />
@@ -246,21 +253,43 @@ const EditableTableRow = ({ row, editing, setEditing, onUpdate, classes }) => {
         timeString: row.timeString,
         note: row.note
       }}
-      onSubmit={(values, actions) => {
-        values.canceled ? setEditing(null) : onUpdate(values);
-        actions.resetForm();
+      validate={values => {
+        const errors = {};
+        if (!values.date) {
+          errors.date = "Required";
+        } else if (!values.date.match(/[\d]{4}-[\d]{2}-[\d]{2}/)) {
+          errors.date = "Must be YYYY-MM-DD";
+        }
+        if (!values.timeString) {
+          errors.timeString = "Required";
+        } else if (!values.timeString.match(/\d?\d:\d\d/)) {
+          errors.timeString = "Must be (H)H:MM";
+        }
+
+        return errors;
       }}
+      onSubmit={(values, actions) => onUpdate(values)}
+      onReset={(values, actions) => setEditing(null)}
     >
-      {({ values, handleSubmit, handleChange, setFieldValue }) => (
+      {({
+        values,
+        handleSubmit,
+        handleReset,
+        handleChange,
+        setFieldValue,
+        errors
+      }) => (
         <RecTable
           values={values}
           handleChange={handleChange}
+          handleReset={handleReset}
           handleSubmit={handleSubmit}
           setFieldValue={setFieldValue}
           editing={editing}
           setEditing={setEditing}
           row={row}
           classes={classes}
+          errors={errors}
         />
       )}
     </Formik>
@@ -271,7 +300,9 @@ const RecTable = ({
   values,
   handleChange,
   handleSubmit,
+  handleReset,
   setFieldValue,
+  errors,
   editing,
   setEditing,
   row,
@@ -299,8 +330,7 @@ const RecTable = ({
             aria-label="edit"
             size="small"
             onClick={_ => {
-              setFieldValue("canceled", true);
-              handleSubmit();
+              handleReset();
             }}
           >
             <Close />
@@ -317,6 +347,7 @@ const RecTable = ({
             rovalue={row.date}
             onChange={handleChange}
             label="Date"
+            errors={errors}
           />
         </Box>
       </Grid>
@@ -330,6 +361,7 @@ const RecTable = ({
             rovalue={row.timeString}
             onChange={handleChange}
             label="Hours"
+            errors={errors}
           />
         </Box>
       </Grid>
@@ -343,6 +375,7 @@ const RecTable = ({
             rovalue={row.note}
             onChange={handleChange}
             label="Note"
+            errors={errors}
           />
         </Box>
       </Grid>
@@ -356,7 +389,8 @@ const EditableTextField = ({
   value,
   rovalue,
   label,
-  onChange
+  onChange,
+  errors
 }) =>
   editing ? (
     <TextField
@@ -368,12 +402,14 @@ const EditableTextField = ({
       onChange={onChange}
       multiline={name === "note"}
       fullWidth
+      error={!!errors[name]}
+      helperText={errors[name]}
     />
   ) : (
     rovalue
       .split("\n")
       .map((line, i, arr) => (
-        <div>{i === arr.length - 1 ? line : line + "↵ "}</div>
+        <div key={i + line}>{i === arr.length - 1 ? line : line + "↵ "}</div>
       ))
   );
 
