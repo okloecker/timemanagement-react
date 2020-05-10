@@ -1,6 +1,7 @@
 import React from "react";
 import * as storage from "storage/storage";
 import { getCookie } from "helpers/cookies";
+import axios from "axios";
 
 import clsx from "clsx";
 
@@ -62,17 +63,16 @@ const Login = props => {
   const [isShowPassword, setShowPassword] = React.useState(false);
 
   const postLogin = ({ username, password }) =>
-    fetch("/app/login", {
+    axios("/app/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
+      data: {
         username,
         password
-      })
+      }
     });
-
   const [mutate] = useMutation(postLogin);
 
   const handleClickShowPassword = () => {
@@ -109,29 +109,49 @@ const Login = props => {
           return errors;
         }}
         onSubmit={async (values, { setFieldError, setStatus }) => {
-          const fetchResult = await mutate({
-            username: values.username,
-            password: values.password
-          });
-
-          if (
-            (
-              ((fetchResult || {}).headers || {}).get("content-type") || ""
-            ).includes("application/json")
-          ) {
-            const json = await fetchResult.json();
-            if (json.username) setFieldError("username", json.username.join());
-            else if (json.password)
-              setFieldError("password", json.password.join());
-            else if ((json.error || {}).message) {
-              setFieldError("username", json.error.message);
-              setFieldError("password", json.error.message);
-            } else if ((json.success || {}).message) {
-              setStatus({ loginSuccessMessage: json.success.message });
-              props.setAuthToken(getCookie("authToken"));
-              const { message, ...rest } = json.success;
-              storage.local.setItem("userInfo", JSON.stringify(rest));
-            }
+          try {
+            await mutate(
+              {
+                username: values.username,
+                password: values.password
+              },
+              {
+                onSuccess: response => {
+                  setStatus({
+                    loginSuccessMessage: response.data.success.message
+                  });
+                  props.setAuthToken(getCookie("authToken"));
+                  const { message, ...rest } = response.data.success;
+                  storage.local.setItem("userInfo", JSON.stringify(rest));
+                },
+                onError: error => {
+                  if (error.response.data) {
+                    if (error.response.data.username)
+                      setFieldError(
+                        "username",
+                        error.response.data.username.join()
+                      );
+                    if (error.response.data.password)
+                      setFieldError(
+                        "password",
+                        error.response.data.password.join()
+                      );
+                    if (error.response.data.error) {
+                      setFieldError(
+                        "username",
+                        error.response.data.error.message
+                      );
+                      setFieldError(
+                        "password",
+                        error.response.data.error.message
+                      );
+                    }
+                  }
+                }
+              }
+            );
+          } catch (err) {
+            console.log("POST error", err);
           }
         }}
       >
