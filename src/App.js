@@ -12,7 +12,11 @@ import { deleteCookie, getCookie } from "helpers/cookies";
 import { Button, Snackbar } from "@material-ui/core";
 import * as storage from "storage/storage";
 import { useMutation } from "react-query";
+import axios from "axios";
 
+/*
+ * Entry point for app, containing the routes and logout handling.
+*/
 function App() {
   const [authToken, setAuthToken] = React.useState();
   const [logoutResult, setLogoutResult] = React.useState({});
@@ -22,7 +26,7 @@ function App() {
   }, []);
 
   const getLogout = () =>
-    fetch("/app/logout", {
+    axios("/app/logout", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -31,31 +35,30 @@ function App() {
     });
   const [mutate] = useMutation(getLogout);
   const handleLogout = async () => {
-    const fetchResult = await mutate();
-    if (!fetchResult.ok) {
-      setLogoutResult({ ok: fetchResult.ok, message: fetchResult.statusText });
-      deleteCookie("authToken");
-      setAuthToken(null);
-    }
-    if (
-      (((fetchResult || {}).headers || {}).get("content-type") || "").includes(
-        "application/json"
-      )
-    ) {
-      const json = await fetchResult.json();
-      if ((json.error || {}).message) {
-        setLogoutResult({ ok: false, message: json.error.message });
-      } else if ((json.success || {}).message) {
-        setAuthToken(null);
-        setLogoutResult({
-          ok: fetchResult.ok,
-          message: (json.success || {}).message
-        });
-        storage.local.removeItem("userInfo");
-      }
+    try {
+      await mutate(null,
+              {
+                onSuccess: response => {
+                  setLogoutResult({ ok: true, message: response.data.success.message });
+                  deleteCookie("authToken");
+                  setAuthToken(null);
+                  storage.local.removeItem("userInfo");
+                },
+                onError: error => {
+                  if (error.response.data) {
+                    if (error.response.data.error) {
+                      setLogoutResult({ ok: false, message: error.response.data.error.message });
+                    }
+                  }
+                }
+              }
+      );
+    } catch (err) {
+      console.log("POST logout error", err);
     }
   };
 
+  /* Show "snack" message on bottom left on logging out */
   const handleCloseLogoutSnack = (event, reason) => {
     setLogoutResult({});
   };
@@ -99,7 +102,7 @@ function App() {
         open={logoutResult.ok !== undefined}
         autoHideDuration={6000}
         onClose={handleCloseLogoutSnack}
-        message={`Logout: ${logoutResult.message}`}
+        message={logoutResult.message}
       />
     </div>
   );
