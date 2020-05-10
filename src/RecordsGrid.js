@@ -5,15 +5,10 @@ import {
   Box,
   Card,
   CardContent,
+  Grid,
   IconButton,
   LinearProgress,
   Snackbar,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography
 } from "@material-ui/core";
@@ -29,15 +24,16 @@ import isDate from "date-fns/isDate";
 import { getCookie } from "helpers/cookies";
 
 const useStyles = makeStyles({
-  table: {
-    minWidth: 650
-  },
   root: {
     minWidth: 275
   },
   title: {
     fontSize: 20,
     textAlign: "center"
+  },
+  editCell: {
+    backgroundColor: "#ffffe4",
+    paddingTop:"8px",
   }
 });
 
@@ -91,7 +87,7 @@ const putRecord = ({ row, authToken }) =>
     data: row
   });
 
-const RecordsTable = props => {
+const RecordsGrid = props => {
   const classes = useStyles();
 
   const authToken = getCookie("authToken");
@@ -202,60 +198,47 @@ const RecordsTable = props => {
       },
       authToken
     });
+
   return (
     <Box m={2}>
       {globalError && <Alert severity="error">{globalError}</Alert>}
-      <TableContainer>
-        <Table className={classes.table} aria-label="time records" size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Edit</TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell align="right">Hours</TableCell>
-              <TableCell>Note</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {data.length ? (
-              data.map(row => (
-                <EditableTableRow
-                  key={row.id}
-                  editing={row.id === editRow}
-                  row={row}
-                  setEditing={setEditRow}
-                  onUpdate={v => {
-                    console.log("new value", v);
-                    if (v !== row.date)
-                      handleRowUpdate({ row, newRow: v });
-                    setEditRow(null);
-                  }}
-                />
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={3}>
-                  <Card className={classes.root}>
-                    <CardContent>
-                      <Typography
-                        className={classes.title}
-                        color="textSecondary"
-                        gutterBottom
-                      >
-                        There is no data to display for this search text.
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <Grid container>
+        {data.length ? (
+          data.map(row => (
+            <EditableTableRow
+              key={row.id}
+              editing={row.id === editRow}
+              row={row}
+              setEditing={setEditRow}
+              onUpdate={v => {
+                console.log("new value", v);
+                if (v !== row.date) handleRowUpdate({ row, newRow: v });
+                setEditRow(null);
+              }}
+              classes={classes}
+            />
+          ))
+        ) : (
+          <Grid xs={12} md={6}>
+            <Card className={classes.root}>
+              <CardContent>
+                <Typography
+                  className={classes.title}
+                  color="textSecondary"
+                  gutterBottom
+                >
+                  There is no data to display for this search text.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+      </Grid>
     </Box>
   );
 };
 
-const EditableTableRow = ({ row, editing, setEditing, onUpdate }) => {
+const EditableTableRow = ({ row, editing, setEditing, onUpdate, classes }) => {
   return (
     <Formik
       initialValues={{
@@ -268,78 +251,102 @@ const EditableTableRow = ({ row, editing, setEditing, onUpdate }) => {
         actions.resetForm();
       }}
     >
-      {({
-        values,
-        errors,
-        touched,
-        handleBlur,
-        handleSubmit,
-        handleChange,
-        setFieldValue
-      }) => (
-        <TableRow>
-          {/* Edit/Cancel icons */}
-          <TableCell>
-            {/*TODO: 
-            use https://material-ui.com/customization/breakpoints/ for mobile
-            */}
-            {editing ? (
-              <IconButton aria-label="edit" onClick={handleSubmit}>
-                <Done />
-              </IconButton>
-            ) : (
-              <IconButton aria-label="edit" onClick={_ => setEditing(row.id)}>
-                <Edit />
-              </IconButton>
-            )}
-            {editing && (
-              <IconButton
-                aria-label="edit"
-                onClick={_ => {
-                  setFieldValue("canceled", true);
-                  handleSubmit();
-                }}
-              >
-                <Close />
-              </IconButton>
-            )}
-          </TableCell>
-          {/* Date field */}
-          <TableCell>
-            <EditableTextField
-              editing={editing}
-              name={"date"}
-              value={values.date}
-              rovalue={row.date}
-              onChange={handleChange}
-              label="Date"
-            />
-          </TableCell>
-          {/* Time field */}
-          <TableCell align="right">
-            <EditableTextField
-              editing={editing}
-              name={"timeString"}
-              value={values.timeString}
-              rovalue={row.timeString}
-              onChange={handleChange}
-              label="Hours"
-            />
-          </TableCell>
-          {/* Note field */}
-          <TableCell>
-            <EditableTextField
-              editing={editing}
-              name={"note"}
-              value={values.note}
-              rovalue={row.note}
-              onChange={handleChange}
-              label="Note"
-            />
-          </TableCell>
-        </TableRow>
+      {({ values, handleSubmit, handleChange, setFieldValue }) => (
+        <RecTable
+          values={values}
+          handleChange={handleChange}
+          handleSubmit={handleSubmit}
+          setFieldValue={setFieldValue}
+          editing={editing}
+          setEditing={setEditing}
+          row={row}
+          classes={classes}
+        />
       )}
     </Formik>
+  );
+};
+
+const RecTable = ({
+  values,
+  handleChange,
+  handleSubmit,
+  setFieldValue,
+  editing,
+  setEditing,
+  row,
+  classes
+}) => {
+  return (
+    <Grid container className={editing ? classes.editCell : ""}>
+      {/* Edit/Cancel icons */}
+      <Grid item xs={12} md={1}>
+        {editing ? (
+          <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
+            <Done />
+          </IconButton>
+        ) : (
+          <IconButton
+            aria-label="edit"
+            size="small"
+            onClick={_ => setEditing(row.id)}
+          >
+            <Edit />
+          </IconButton>
+        )}
+        {editing && (
+          <IconButton
+            aria-label="edit"
+            size="small"
+            onClick={_ => {
+              setFieldValue("canceled", true);
+              handleSubmit();
+            }}
+          >
+            <Close />
+          </IconButton>
+        )}
+      </Grid>
+      {/* Date field */}
+      <Grid item xs={12} md={2}>
+        <Box m={1}>
+          <EditableTextField
+            editing={editing}
+            name={"date"}
+            value={values.date}
+            rovalue={row.date}
+            onChange={handleChange}
+            label="Date"
+          />
+        </Box>
+      </Grid>
+      {/* Time field */}
+      <Grid item xs={12} md={1}>
+        <Box m={1}>
+          <EditableTextField
+            editing={editing}
+            name={"timeString"}
+            value={values.timeString}
+            rovalue={row.timeString}
+            onChange={handleChange}
+            label="Hours"
+          />
+        </Box>
+      </Grid>
+      {/* Note field */}
+      <Grid item xs={12} md={8}>
+        <Box m={1}>
+          <EditableTextField
+            editing={editing}
+            name={"note"}
+            value={values.note}
+            rovalue={row.note}
+            onChange={handleChange}
+            label="Note"
+          />
+        </Box>
+      </Grid>
+    </Grid>
   );
 };
 
@@ -363,7 +370,11 @@ const EditableTextField = ({
       fullWidth
     />
   ) : (
-    rovalue.replace(/\n\n/g, " ↵ ")
+    rovalue
+      .split("\n")
+      .map((line, i, arr) => (
+        <div>{i === arr.length - 1 ? line : line + "↵ "}</div>
+      ))
   );
 
-export default React.memo(RecordsTable);
+export default React.memo(RecordsGrid);

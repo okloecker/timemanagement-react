@@ -3,6 +3,7 @@ import { Formik } from "formik";
 import {
   Box,
   Grid,
+  Fab,
   Paper,
   TextField,
   IconButton,
@@ -11,6 +12,7 @@ import {
 import { makeStyles } from "@material-ui/core/styles";
 import Search from "@material-ui/icons/Search";
 import Clear from "@material-ui/icons/Clear";
+import Add from "@material-ui/icons/Add";
 import DateFnsUtils from "@date-io/date-fns";
 import isDate from "date-fns/isDate";
 import startOfMonth from "date-fns/startOfMonth";
@@ -23,7 +25,7 @@ import {
   MuiPickersUtilsProvider,
   KeyboardDatePicker
 } from "@material-ui/pickers";
-import RecordsTable from "RecordsTable";
+import RecordsGrid from "RecordsGrid";
 
 const DEBOUNCE_TIMEOUT_MS = 500;
 
@@ -195,8 +197,16 @@ const Dashboard = props => {
                         />
                       </Grid>
                     </Box>
+                    <Box p={4}>
+                        <Grid item>
+
+                      <Fab color="primary" aria-label="add">
+                        <Add />
+                      </Fab>
+                        </Grid>
+                    </Box>
                   </Grid>
-                  <RecordsTable
+                  <RecordsGrid
                     startDate={formValues.selectedStartDate}
                     endDate={formValues.selectedEndDate}
                     searchText={formValues.searchText}
