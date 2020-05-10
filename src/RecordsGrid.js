@@ -19,8 +19,10 @@ import Edit from "@material-ui/icons/Edit";
 import { makeStyles } from "@material-ui/core/styles";
 import { useQuery, useMutation, queryCache } from "react-query";
 import format from "date-fns/format";
+import parse from "date-fns/parse";
 import parseISO from "date-fns/parseISO";
 import isDate from "date-fns/isDate";
+import isValid from "date-fns/isValid";
 import { getCookie } from "helpers/cookies";
 
 const useStyles = makeStyles({
@@ -95,6 +97,21 @@ const RecordsGrid = props => {
   const [editRow, setEditRow] = React.useState();
 
   const [globalError, setGlobalError] = React.useState();
+
+  React.useEffect(() => {
+    return () => {
+      // on unmounting, clear react-query cache, otherwise it will continue to
+      // fetch
+      queryCache.clear();
+    };
+  }, []);
+
+  React.useEffect(
+    () => {
+      if (editRow === null) setGlobalError(null);
+    },
+    [editRow]
+  );
 
   const { status, data, error } = useQuery(
     [
@@ -220,7 +237,6 @@ const RecordsGrid = props => {
               setEditing={setEditRow}
               onUpdate={v => {
                 if (v !== row.date) handleRowUpdate({ row, newRow: v });
-                // setEditRow(null);
               }}
               classes={classes}
             />
@@ -259,6 +275,10 @@ const EditableTableRow = ({ row, editing, setEditing, onUpdate, classes }) => {
           errors.date = "Required";
         } else if (!values.date.match(/[\d]{4}-[\d]{2}-[\d]{2}/)) {
           errors.date = "Must be YYYY-MM-DD";
+        } else if (
+          !isValid(parse(values.date.match, "yyyy-MM-dd", new Date()))
+        ) {
+          errors.date = "Invalid Date";
         }
         if (!values.timeString) {
           errors.timeString = "Required";
