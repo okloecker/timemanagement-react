@@ -5,6 +5,7 @@ import {
   Box,
   Card,
   CardContent,
+  Divider,
   Grid,
   IconButton,
   LinearProgress,
@@ -24,6 +25,9 @@ import parseISO from "date-fns/parseISO";
 import isDate from "date-fns/isDate";
 import isValid from "date-fns/isValid";
 import { getCookie } from "helpers/cookies";
+import PagingControls from "PagingControls";
+
+const PAGE_SIZE = 30;
 
 const useStyles = makeStyles({
   root: {
@@ -95,8 +99,8 @@ const RecordsGrid = props => {
   const authToken = getCookie("authToken");
 
   const [editRow, setEditRow] = React.useState();
-
   const [globalError, setGlobalError] = React.useState();
+  const [page, setPage] = React.useState(1);
 
   React.useEffect(() => {
     return () => {
@@ -189,7 +193,7 @@ const RecordsGrid = props => {
     return <Alert severity="error">{data.error.statusText}</Alert>;
   }
 
-  if (!data || !data || !data.length) {
+  if (!data || !data.length) {
     return (
       <Card className={classes.root}>
         <CardContent>
@@ -215,8 +219,20 @@ const RecordsGrid = props => {
       authToken
     });
 
+  const firstIdx = Math.max(0, page - 1) * PAGE_SIZE;
+  const lastIdx = page * PAGE_SIZE;
+  const pageData = data.slice(firstIdx, lastIdx);
+
   return (
     <Box m={2}>
+      <PagingControls
+        page={page}
+        setPage={setPage}
+        lastPage={Math.ceil(data.length / PAGE_SIZE)}
+        firstIdx={firstIdx}
+        lastIdx={lastIdx}
+        dataCount={data.length}
+      />
       {globalError && globalError.reasons && (
         <Alert severity="error">
           {globalError.message}
@@ -228,8 +244,8 @@ const RecordsGrid = props => {
         </Alert>
       )}
       <Grid container>
-        {data.length ? (
-          data.map(row => (
+        {pageData.length ? (
+          pageData.map((row, i, arr) => (
             <EditableTableRow
               key={row.id}
               editing={row.id === editRow}
@@ -238,6 +254,7 @@ const RecordsGrid = props => {
               onUpdate={v => {
                 if (v !== row.date) handleRowUpdate({ row, newRow: v });
               }}
+              newDay={i===0 || row.date !== arr[Math.max(0, i - 1)].date}
               classes={classes}
             />
           ))
@@ -257,11 +274,26 @@ const RecordsGrid = props => {
           </Grid>
         )}
       </Grid>
+      <PagingControls
+        page={page}
+        setPage={setPage}
+        lastPage={Math.ceil(data.length / PAGE_SIZE)}
+        firstIdx={firstIdx}
+        lastIdx={lastIdx}
+        dataCount={data.length}
+      />
     </Box>
   );
 };
 
-const EditableTableRow = ({ row, editing, setEditing, onUpdate, classes }) => {
+const EditableTableRow = ({
+  row,
+  newDay,
+  editing,
+  setEditing,
+  onUpdate,
+  classes
+}) => {
   return (
     <Formik
       initialValues={{
@@ -299,7 +331,7 @@ const EditableTableRow = ({ row, editing, setEditing, onUpdate, classes }) => {
         setFieldValue,
         errors
       }) => (
-        <RecTable
+        <Record
           values={values}
           handleChange={handleChange}
           handleReset={handleReset}
@@ -308,6 +340,7 @@ const EditableTableRow = ({ row, editing, setEditing, onUpdate, classes }) => {
           editing={editing}
           setEditing={setEditing}
           row={row}
+          newDay={newDay}
           classes={classes}
           errors={errors}
         />
@@ -316,7 +349,7 @@ const EditableTableRow = ({ row, editing, setEditing, onUpdate, classes }) => {
   );
 };
 
-const RecTable = ({
+const Record = ({
   values,
   handleChange,
   handleSubmit,
@@ -326,10 +359,14 @@ const RecTable = ({
   editing,
   setEditing,
   row,
+  newDay,
   classes
 }) => {
   return (
     <Grid container className={editing ? classes.editCell : ""}>
+      <Grid item xs={12}>
+        {newDay && <Divider variant="fullWidth" />}
+      </Grid>
       {/* Edit/Cancel icons */}
       <Grid item xs={12} md={1}>
         {editing ? (
@@ -364,7 +401,7 @@ const RecTable = ({
             editing={editing}
             name={"date"}
             value={values.date}
-            rovalue={row.date}
+            rovalue={newDay ? row.date : ""}
             onChange={handleChange}
             label="Date"
             errors={errors}
@@ -426,11 +463,11 @@ const EditableTextField = ({
       helperText={errors[name]}
     />
   ) : (
-    rovalue
-      .split("\n")
-      .map((line, i, arr) => (
-        <div key={i + line}>{i === arr.length - 1 ? line : line + "↵ "}</div>
-      ))
+    rovalue.split("\n").map((line, i, arr) => (
+      <div style={{ overflow: "auto" }} key={i + line}>
+        {i === arr.length - 1 ? line : line + "↵ "}
+      </div>
+    ))
   );
 
 export default React.memo(RecordsGrid);
