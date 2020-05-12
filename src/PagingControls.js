@@ -4,14 +4,6 @@ import FirstPageIcon from "@material-ui/icons/FirstPage";
 import KeyboardArrowLeft from "@material-ui/icons/KeyboardArrowLeft";
 import KeyboardArrowRight from "@material-ui/icons/KeyboardArrowRight";
 import LastPageIcon from "@material-ui/icons/LastPage";
-import { makeStyles } from "@material-ui/core/styles";
-
-const useStyles = makeStyles({
-  root: {
-    paddingTop: "8px",
-    paddingBottom: "16px"
-  }
-});
 
 const PagingControls = ({
   page,
@@ -21,9 +13,8 @@ const PagingControls = ({
   dataCount,
   setPage
 }) => {
-  const classes = useStyles();
   return (
-    <div className={classes.root}>
+    <>
       <IconButton
         aria-label="previous"
         size="small"
@@ -71,7 +62,7 @@ const PagingControls = ({
       >
         <LastPageIcon />
       </IconButton>
-    </div>
+    </>
   );
 };
 

@@ -3,16 +3,13 @@ import { Formik } from "formik";
 import {
   Box,
   Grid,
-  Fab,
   Paper,
   TextField,
   IconButton,
   InputAdornment
 } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
-import Search from "@material-ui/icons/Search";
-import Clear from "@material-ui/icons/Clear";
-import Add from "@material-ui/icons/Add";
+import { Clear, Search } from "@material-ui/icons";
 import DateFnsUtils from "@date-io/date-fns";
 import isDate from "date-fns/isDate";
 import isValid from "date-fns/isValid";
@@ -21,7 +18,7 @@ import endOfMonth from "date-fns/endOfMonth";
 import isBefore from "date-fns/isBefore";
 import isEqual from "date-fns/isEqual";
 import parseISO from "date-fns/parseISO";
-import * as storage from "storage/storage";
+import { getStorageItem, setStorageItem } from "storage/storage";
 import {
   MuiPickersUtilsProvider,
   KeyboardDatePicker
@@ -42,9 +39,6 @@ const useStyles = makeStyles(theme => ({
     padding: theme.spacing(2)
   }
 }));
-
-const getStorageItem = name => storage.local.getItem(name);
-const setStorageItem = (name, value) => storage.local.setItem(name, value);
 
 const getInitialValues = _ => ({
   selectedStartDate: getStorageItem("selectedStartDate")
@@ -197,14 +191,6 @@ const Dashboard = props => {
                           }}
                         />
                       </Grid>
-                    </Box>
-                    <Box p={4}>
-                        <Grid item>
-
-                      <Fab color="primary" aria-label="add">
-                        <Add />
-                      </Fab>
-                        </Grid>
                     </Box>
                   </Grid>
                   <RecordsGrid
