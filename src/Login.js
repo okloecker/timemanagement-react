@@ -61,6 +61,7 @@ const useStyles = makeStyles(theme => ({
 const Login = props => {
   const classes = useStyles();
   const [isShowPassword, setShowPassword] = React.useState(false);
+  const [globalError, setGlobalError] = React.useState();
 
   const postLogin = ({ username, password }) =>
     axios("/app/login", {
@@ -123,6 +124,7 @@ const Login = props => {
                   props.setAuthToken(getCookie("authToken"));
                   const { message, ...rest } = response.data.success;
                   storage.local.setItem("userInfo", JSON.stringify(rest));
+                  setGlobalError(null);
                 },
                 onError: error => {
                   if (error.response.data) {
@@ -146,6 +148,13 @@ const Login = props => {
                         error.response.data.error.message
                       );
                     }
+                  } 
+                  if (error.response.statusText) {
+                    setGlobalError({
+                      message: `Login failed with error: ${
+                        error.response.statusText
+                      }`
+                    });
                   }
                 }
               }
@@ -243,6 +252,11 @@ const Login = props => {
                 */}
               </form>
             </div>
+            {globalError && (
+              <Alert severity="error">
+                {globalError.message}
+              </Alert>
+            )}
             <Box mt={8}>
               <Copyright />
             </Box>
