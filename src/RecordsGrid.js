@@ -308,7 +308,7 @@ const EditableTableRow = ({
         } else if (!values.date.match(/[\d]{4}-[\d]{2}-[\d]{2}/)) {
           errors.date = "Must be YYYY-MM-DD";
         } else if (
-          !isValid(parse(values.date.match, "yyyy-MM-dd", new Date()))
+          !isValid(parse(values.date, "yyyy-MM-dd", new Date()))
         ) {
           errors.date = "Invalid Date";
         }
