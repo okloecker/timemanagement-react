@@ -40,6 +40,7 @@ function App() {
         onSuccess: response => {
           setLogoutResult({ ok: true, message: response.data.success.message });
           deleteCookie("authToken");
+          deleteCookie("PLAY_SESSION");
           setAuthToken(null);
           storage.local.removeItem("userInfo");
         },
@@ -53,6 +54,7 @@ function App() {
             }
           }
           deleteCookie("authToken");
+          deleteCookie("PLAY_SESSION");
           setAuthToken(null);
           storage.local.removeItem("userInfo");
         }
