@@ -14,7 +14,7 @@ import {
 } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import { Add, Close, Delete, Done, Edit } from "@material-ui/icons";
-import Alert from "@material-ui/lab/Alert";
+import { Alert, Pagination } from "@material-ui/lab";
 import {
   MuiPickersUtilsProvider,
   KeyboardDatePicker,
@@ -29,7 +29,6 @@ import parse from "date-fns/parse";
 import parseISO from "date-fns/parseISO";
 import { Formik } from "formik";
 import { getCookie } from "helpers/cookies";
-import PagingControls from "PagingControls";
 import React from "react";
 import { queryCache, useMutation, useQuery } from "react-query";
 import { getStorageItem } from "storage/storage";
@@ -43,6 +42,7 @@ const useStyles = makeStyles({
   title: { fontSize: 20, textAlign: "center" },
   editCell: { backgroundColor: "#ffffe4", paddingTop: "8px" },
   controls: { paddingTop: "8px", paddingBottom: "16px" },
+  pagination: {display: "inline-block" },
   fab: { paddingLeft: "8px" }
 });
 
@@ -334,14 +334,14 @@ const RecordsGrid = props => {
   return (
     <Box m={2}>
       <div className={classes.controls}>
-        <PagingControls
-          page={page}
-          setPage={setPage}
-          lastPage={Math.ceil(data.length / PAGE_SIZE)}
-          firstIdx={firstIdx}
-          lastIdx={lastIdx}
-          dataCount={data.length}
+        <span className={classes.pagination}>
+        <Pagination
+          count={Math.ceil(data.length / PAGE_SIZE)}
+          showFirstButton
+          showLastButton
+          onChange={(e, p) => setPage(p)}
         />
+            </span>
         &emsp;
         <Fab
           color="primary"
@@ -403,14 +403,12 @@ const RecordsGrid = props => {
           </Grid>
         </Grid>
       )}
-      <PagingControls
-        page={page}
-        setPage={setPage}
-        lastPage={Math.ceil(data.length / PAGE_SIZE)}
-        firstIdx={firstIdx}
-        lastIdx={lastIdx}
-        dataCount={data.length}
-      />
+        <Pagination
+          count={Math.ceil(data.length / PAGE_SIZE)}
+          showFirstButton
+          showLastButton
+          onChange={(e, p) => setPage(p)}
+        />
       <Snackbar
         anchorOrigin={{
           vertical: "bottom",
