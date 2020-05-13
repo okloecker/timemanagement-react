@@ -42,7 +42,7 @@ const useStyles = makeStyles({
   title: { fontSize: 20, textAlign: "center" },
   editCell: { backgroundColor: "#ffffe4", paddingTop: "8px" },
   controls: { paddingTop: "8px", paddingBottom: "16px" },
-  pagination: {display: "inline-block" },
+  pagination: { display: "inline-block" },
   fab: { paddingLeft: "8px" }
 });
 
@@ -335,13 +335,13 @@ const RecordsGrid = props => {
     <Box m={2}>
       <div className={classes.controls}>
         <span className={classes.pagination}>
-        <Pagination
-          count={Math.ceil(data.length / PAGE_SIZE)}
-          showFirstButton
-          showLastButton
-          onChange={(e, p) => setPage(p)}
-        />
-            </span>
+          <Pagination
+            count={Math.ceil(data.length / PAGE_SIZE)}
+            showFirstButton
+            showLastButton
+            onChange={(e, p) => setPage(p)}
+          />
+        </span>
         &emsp;
         <Fab
           color="primary"
@@ -403,12 +403,12 @@ const RecordsGrid = props => {
           </Grid>
         </Grid>
       )}
-        <Pagination
-          count={Math.ceil(data.length / PAGE_SIZE)}
-          showFirstButton
-          showLastButton
-          onChange={(e, p) => setPage(p)}
-        />
+      <Pagination
+        count={Math.ceil(data.length / PAGE_SIZE)}
+        showFirstButton
+        showLastButton
+        onChange={(e, p) => setPage(p)}
+      />
       <Snackbar
         anchorOrigin={{
           vertical: "bottom",
@@ -512,39 +512,18 @@ const Record = ({
         {newDay && <Divider variant="fullWidth" />}
       </Grid>
       {/* Edit/Cancel icons */}
-      <Grid item xs={12} md={1}>
-        {editing ? (
-          <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
-            <Done />
-          </IconButton>
-        ) : (
-          <IconButton
-            aria-label="edit"
-            size="small"
-            onClick={_ => setEditing(row.id)}
-          >
-            <Edit />
-          </IconButton>
-        )}
-        {editing && (
-          <>
-            <IconButton aria-label="reset" size="small" onClick={handleReset}>
-              <Close />
-            </IconButton>
-            <IconButton
-              aria-label="delete"
-              size="small"
-              onClick={_ => handleRecordDelete(row)}
-            >
-              <Delete />
-            </IconButton>
-          </>
-        )}
-      </Grid>
+      <EditControls
+        editing={editing}
+        setEditing={setEditing}
+        handleSubmit={handleSubmit}
+        row={row}
+        handleReset={handleReset}
+        handleRecordDelete={handleRecordDelete}
+      />
       {/* Date field */}
       <Grid item xs={12} md={2}>
-        <Box m={1}>
-          {editing ? (
+        {editing ? (
+          <MuiPickersUtilsProvider utils={DateFnsUtils}>
             <KeyboardDatePicker
               margin="normal"
               id="date-picker"
@@ -560,53 +539,63 @@ const Record = ({
                 "aria-label": "change date"
               }}
             />
-          ) : (
+          </MuiPickersUtilsProvider>
+        ) : (
+          <Box m={1}>
             <div>{values.date}</div>
-          )}
-        </Box>
+          </Box>
+        )}
       </Grid>
       {/* Time field */}
       <Grid item xs={12} md={editing ? 2 : 1}>
-        <Box m={1}>
-          {editing ? (
-            <MuiPickersUtilsProvider utils={DateFnsUtils}>
-              <KeyboardTimePicker
-                margin="normal"
-                id="date-time-dialog"
-                label="Time Spent"
-                format="HH:mm"
-                ampm={false}
-                autoOk
-                value={parse(values.timeString, "HH:mm", new Date())}
-                onChange={v =>
-                  isValid(v) && setFieldValue("timeString", format(v, "HH:mm"))
-                }
-                error={!!errors["timeString"]}
-                helperText={errors["timeString"]}
-                KeyboardButtonProps={{
-                  "aria-label": "change time spent"
-                }}
-              />
-            </MuiPickersUtilsProvider>
-          ) : (
+        {editing ? (
+          <MuiPickersUtilsProvider utils={DateFnsUtils}>
+            <KeyboardTimePicker
+              margin="normal"
+              id="date-time-dialog"
+              label="Time Spent"
+              format="HH:mm"
+              ampm={false}
+              autoOk
+              value={parse(values.timeString, "HH:mm", new Date())}
+              onChange={v =>
+                isValid(v) && setFieldValue("timeString", format(v, "HH:mm"))
+              }
+              error={!!errors["timeString"]}
+              helperText={errors["timeString"]}
+              KeyboardButtonProps={{
+                "aria-label": "change time spent"
+              }}
+            />
+          </MuiPickersUtilsProvider>
+        ) : (
+          <Box m={1}>
             <div>{values.timeString}</div>
-          )}
-        </Box>
+          </Box>
+        )}
       </Grid>
       {/* Note field */}
-      <Grid item xs={12} md={editing ? 7 : 8}>
-        <Box m={1}>
-          <EditableTextField
-            editing={editing}
-            name={"note"}
-            value={values.note}
-            rovalue={row.note}
-            onChange={handleChange}
-            label="Note"
-            errors={errors}
-          />
-        </Box>
+      <Grid item xs={12} md={editing ? 6 : 7}>
+        <EditableTextField
+          editing={editing}
+          name={"note"}
+          value={values.note}
+          rovalue={row.note}
+          onChange={handleChange}
+          label="Note"
+          errors={errors}
+        />
       </Grid>
+      {/* Edit/Cancel icons */}
+      <EditControls
+        editing={editing}
+        setEditing={setEditing}
+        handleSubmit={handleSubmit}
+        row={row}
+        handleReset={handleReset}
+        handleRecordDelete={handleRecordDelete}
+        show={editing}
+      />
     </Grid>
   );
 };
@@ -634,11 +623,13 @@ const EditableTextField = ({
       helperText={errors[name]}
     />
   ) : (
-    (rovalue || "").split("\n").map((line, i, arr) => (
-      <div style={{ overflow: "auto" }} key={i + line}>
-        {i === arr.length - 1 ? line : line + "↵ "}
-      </div>
-    ))
+    <Box m={1}>
+      {(rovalue || "").split("\n").map((line, i, arr) => (
+        <div style={{ overflow: "auto" }} key={i + line}>
+          {i === arr.length - 1 ? line : line + "↵ "}
+        </div>
+      ))}
+    </Box>
   );
 
 const AddTableRow = ({ onAdd, setAddRow, classes }) => (
@@ -679,47 +670,114 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
         </Grid>
         {/* Date field */}
         <Grid item xs={12} md={2}>
-          <Box m={1}>
-            <EditableTextField
-              editing={true}
-              name={"date"}
-              value={values.date}
-              onChange={handleChange}
+          <MuiPickersUtilsProvider utils={DateFnsUtils}>
+            <KeyboardDatePicker
+              margin="normal"
+              id="date-picker"
               label="Date"
-              errors={errors}
+              format={DATE_FORMAT}
+              value={parse(values.date, DATE_FORMAT, new Date())}
+              onChange={v =>
+                isValid(v) && setFieldValue("date", format(v, DATE_FORMAT))
+              }
+              error={!!errors.date}
+              helperText={errors.date}
+              KeyboardButtonProps={{
+                "aria-label": "change date"
+              }}
             />
-          </Box>
+          </MuiPickersUtilsProvider>
         </Grid>
         {/* Time field */}
-        <Grid item xs={12} md={1}>
-          <Box m={1}>
-            <EditableTextField
-              editing={true}
-              name={"timeString"}
-              value={values.timeString}
-              onChange={handleChange}
-              label="Hours"
-              errors={errors}
+        <Grid item xs={12} md={2}>
+          <MuiPickersUtilsProvider utils={DateFnsUtils}>
+            <KeyboardTimePicker
+              margin="normal"
+              id="date-time-dialog"
+              label="Time Spent"
+              format="HH:mm"
+              ampm={false}
+              autoOk
+              value={parse(values.timeString, "HH:mm", new Date())}
+              onChange={v =>
+                isValid(v) && setFieldValue("timeString", format(v, "HH:mm"))
+              }
+              error={!!errors["timeString"]}
+              helperText={errors["timeString"]}
+              KeyboardButtonProps={{
+                "aria-label": "change time spent"
+              }}
             />
-          </Box>
+          </MuiPickersUtilsProvider>
         </Grid>
         {/* Note field */}
-        <Grid item xs={12} md={8}>
-          <Box m={1}>
-            <EditableTextField
-              editing={true}
-              name={"note"}
-              value={values.note}
-              onChange={handleChange}
-              label="Note"
-              errors={errors}
-            />
-          </Box>
+        <Grid item xs={12} md={6}>
+          <EditableTextField
+            editing={true}
+            name={"note"}
+            value={values.note}
+            onChange={handleChange}
+            label="Note"
+            errors={errors}
+          />
         </Grid>
+        <AddControls handleSubmit={handleSubmit} handleReset={handleReset} />
       </Grid>
     )}
   </Formik>
 );
+
+const AddControls = ({ handleSubmit, handleReset }) => (
+  <Grid item xs={12} md={1}>
+    <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
+      <Done />
+    </IconButton>
+    <IconButton aria-label="edit" size="small" onClick={handleReset}>
+      <Close />
+    </IconButton>
+  </Grid>
+);
+
+const EditControls = ({
+  editing,
+  setEditing,
+  handleSubmit,
+  row,
+  handleReset,
+  handleRecordDelete,
+  show = true
+}) =>
+  show ? (
+    <Grid item xs={12} md={1}>
+      {editing ? (
+        <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
+          <Done />
+        </IconButton>
+      ) : (
+        <IconButton
+          aria-label="edit"
+          size="small"
+          onClick={_ => setEditing(row.id)}
+        >
+          <Edit />
+        </IconButton>
+      )}
+      {editing && (
+        <>
+          <IconButton aria-label="reset" size="small" onClick={handleReset}>
+            <Close />
+          </IconButton>
+          <IconButton
+            aria-label="delete"
+            size="small"
+            onClick={_ => handleRecordDelete(row)}
+          >
+            <Delete />
+          </IconButton>
+        </>
+      )}
+    </Grid>
+  ) : null;
 
 const validateRecord = values => {
   const errors = {};
