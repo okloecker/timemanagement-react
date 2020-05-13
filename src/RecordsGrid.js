@@ -1,8 +1,6 @@
-import React from "react";
-import { Formik } from "formik";
-import axios from "axios";
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Divider,
@@ -14,17 +12,20 @@ import {
   TextField,
   Typography
 } from "@material-ui/core";
-import Alert from "@material-ui/lab/Alert";
-import { Add, Close, Done, Edit } from "@material-ui/icons";
 import { makeStyles } from "@material-ui/core/styles";
-import { useQuery, useMutation, queryCache } from "react-query";
+import { Add, Close, Delete, Done, Edit } from "@material-ui/icons";
+import Alert from "@material-ui/lab/Alert";
+import axios from "axios";
 import format from "date-fns/format";
-import parse from "date-fns/parse";
-import parseISO from "date-fns/parseISO";
 import isDate from "date-fns/isDate";
 import isValid from "date-fns/isValid";
+import parse from "date-fns/parse";
+import parseISO from "date-fns/parseISO";
+import { Formik } from "formik";
 import { getCookie } from "helpers/cookies";
 import PagingControls from "PagingControls";
+import React from "react";
+import { queryCache, useMutation, useQuery } from "react-query";
 import { getStorageItem } from "storage/storage";
 
 const PAGE_SIZE = 30;
@@ -32,24 +33,11 @@ const DATE_FORMAT = "yyyy-MM-dd";
 const TMP_ID = Number.MAX_SAFE_INTEGER;
 
 const useStyles = makeStyles({
-  root: {
-    minWidth: 275
-  },
-  title: {
-    fontSize: 20,
-    textAlign: "center"
-  },
-  editCell: {
-    backgroundColor: "#ffffe4",
-    paddingTop: "8px"
-  },
-  controls: {
-    paddingTop: "8px",
-    paddingBottom: "16px"
-  },
-  fab: {
-    paddingLeft: "8px"
-  }
+  root: { minWidth: 275 },
+  title: { fontSize: 20, textAlign: "center" },
+  editCell: { backgroundColor: "#ffffe4", paddingTop: "8px" },
+  controls: { paddingTop: "8px", paddingBottom: "16px" },
+  fab: { paddingLeft: "8px" }
 });
 
 const fetchRecords = async (
@@ -92,15 +80,15 @@ const fetchRecords = async (
   }
 };
 
-const putRecord = ({ row, user, authToken, method = "PUT" }) =>
-  axios(`/app/timerecord${method === "PUT" ? "/" + row.id : ""}`, {
-    method, // "PUT" or "POST"
-    headers: {
-      "Content-Type": "application/json",
-      "X-AUTH-TOKEN": authToken
-    },
+const updateRecord = ({ row, user, authToken, method = "PUT" }) => {
+  let fragment = method === "POST" ? "" : `/${row.id}`;
+  const url = `/app/timerecord${fragment}`;
+  return axios(url, {
+    method, // "PUT" or "POST" or "DELETE"
+    headers: { "Content-Type": "application/json", "X-AUTH-TOKEN": authToken },
     data: row
   });
+};
 
 const RecordsGrid = props => {
   const classes = useStyles();
@@ -109,7 +97,9 @@ const RecordsGrid = props => {
 
   const [editRow, setEditRow] = React.useState();
   const [addRow, setAddRow] = React.useState(null);
+  const [undoRow, setUndoRow] = React.useState();
   const [globalError, setGlobalError] = React.useState();
+  const [snackMessage, setSnackMessage] = React.useState();
   const [page, setPage] = React.useState(1);
 
   React.useEffect(() => {
@@ -134,6 +124,19 @@ const RecordsGrid = props => {
     [addRow]
   );
 
+  React.useEffect(
+    () => {
+      if (undoRow) {
+        setSnackMessage({
+          message: "Delete successful",
+          row: undoRow,
+          date: new Date().getTime()
+        });
+      }
+    },
+    [undoRow]
+  );
+
   const { status, data, error } = useQuery(
     [
       "records",
@@ -150,7 +153,7 @@ const RecordsGrid = props => {
 
   // update record with new data, optimistically showing new data in table, but
   // rolling back on error
-  const [mutate] = useMutation(putRecord, {
+  const [mutate] = useMutation(updateRecord, {
     onMutate: ({ row: newRow, method }) => {
       const key = [
         "records",
@@ -162,42 +165,69 @@ const RecordsGrid = props => {
         }
       ];
       const previousData = queryCache.getQueryData(key);
-      if (method === "PUT") {
-        queryCache.setQueryData(
-          key,
-          previousData.map(r => (r.id === newRow.id ? newRow : r))
-        );
-        setEditRow(null);
-      } else {
-        const newData = previousData
-          .concat({ ...newRow, id: TMP_ID })
-          .sort((a, b) => b.id - a.id);
-        queryCache.setQueryData(key, newData);
-        setAddRow(null);
+      switch (method) {
+        case "PUT":
+          queryCache.setQueryData(
+            key,
+            previousData.map(r => (r.id === newRow.id ? newRow : r))
+          );
+          setEditRow(null);
+          break;
+        case "POST":
+          queryCache.setQueryData(
+            key,
+            previousData
+              .concat({ ...newRow, id: TMP_ID })
+              .sort((a, b) => b.id - a.id)
+          );
+          setAddRow(null);
+          break;
+        case "DELETE":
+          setUndoRow(newRow);
+          queryCache.setQueryData(
+            key,
+            previousData.filter(r => r.id !== newRow.id)
+          );
+          break;
+        default:
+          console.log("Unknown method", method);
       }
       setGlobalError(null);
       return () => queryCache.setQueryData(key, previousData); // the rollback function
     },
-    onError: (err, { row }, rollback) => {
-      let reasons = [((err.response.data || {}).error || {}).message];
-      if (!reasons.length)
-        reasons = err.response.data
+    onError: (err, { row, method }, rollback) => {
+      let reasons = [
+        ((((err || {}).response || {}).data || {}).error || {}).message
+      ];
+      if (!reasons.length || !reasons[0])
+        reasons = ((err || {}).response || {}).data
           ? Object.keys(err.response.data).reduce(
               (acc, k) => acc.concat(err.response.data[k].flat()),
               []
             )
           : [];
       rollback();
-      if (row.id !== TMP_ID) {
-        // user must correct error or reset values
-        setEditRow(row.id);
-      } else {
-        setAddRow(row);
+      switch (method) {
+        case "PUT":
+          if (row.id !== TMP_ID) {
+            // user must correct error or reset values
+            setEditRow(row.id);
+          }
+          break;
+        case "POST":
+          setAddRow(row);
+          break;
+        case "DELETE":
+          break;
+        default:
+          console.log("Unknown method", method);
       }
-      setGlobalError({ message: `Update failed with error: ${err}`, reasons });
+      setGlobalError({
+        message: `Update failed with error: ${err}`,
+        reasons
+      });
     },
     onSuccess: data => {
-      console.log(`onSuccess  `);
       // TODO: this fetches all data; a better way would be if the backend
       // returned the new item so we could queryCache.setQueryData() with it,
       // replacing the optimistically set one with temporary ID; but the
@@ -275,6 +305,22 @@ const RecordsGrid = props => {
     });
   };
 
+  const handleRecordDelete = async record => {
+    await mutate({
+      row: record,
+      method: "DELETE",
+      authToken
+    });
+  };
+
+  const handleUndoDelete = async row => {
+    if(undoRow) {
+      await handleRecordAdd(undoRow);
+      setUndoRow(null);
+    }
+    setSnackMessage(null);
+  };
+
   const firstIdx = Math.max(0, page - 1) * PAGE_SIZE;
   const lastIdx = page * PAGE_SIZE;
   const pageData = data.slice(firstIdx, lastIdx);
@@ -326,6 +372,7 @@ const RecordsGrid = props => {
             editing={row.id === editRow}
             row={row}
             setEditing={setEditRow}
+            handleRecordDelete={handleRecordDelete}
             onUpdate={v => {
               if (v !== row.date) handleRowUpdate({ row, newRow: v });
             }}
@@ -358,6 +405,35 @@ const RecordsGrid = props => {
         lastIdx={lastIdx}
         dataCount={data.length}
       />
+      <Snackbar
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "left"
+        }}
+        open={!!snackMessage}
+        autoHideDuration={15000}
+        onClose={_ => {setUndoRow(null); setSnackMessage(null)}}
+        message={(snackMessage || {}).message}
+        action={
+          <React.Fragment>
+            <Button
+              color="secondary"
+              size="small"
+              onClick={_ => handleUndoDelete(snackMessage.row)}
+            >
+              UNDO
+            </Button>
+            <IconButton
+              aria-label="close"
+              color="inherit"
+              className={classes.close}
+              onClick={_ => setUndoRow(null)}
+            >
+              <Close />
+            </IconButton>
+          </React.Fragment>
+        }
+      />
     </Box>
   );
 };
@@ -367,6 +443,7 @@ const EditableTableRow = ({
   newDay,
   editing,
   setEditing,
+  handleRecordDelete,
   onUpdate,
   classes
 }) => {
@@ -397,6 +474,7 @@ const EditableTableRow = ({
           setFieldValue={setFieldValue}
           editing={editing}
           setEditing={setEditing}
+          handleRecordDelete={handleRecordDelete}
           row={row}
           newDay={newDay}
           classes={classes}
@@ -416,6 +494,7 @@ const Record = ({
   errors,
   editing,
   setEditing,
+  handleRecordDelete,
   row,
   newDay,
   classes
@@ -441,15 +520,18 @@ const Record = ({
           </IconButton>
         )}
         {editing && (
-          <IconButton
-            aria-label="edit"
-            size="small"
-            onClick={_ => {
-              handleReset();
-            }}
-          >
-            <Close />
-          </IconButton>
+          <>
+            <IconButton aria-label="reset" size="small" onClick={handleReset}>
+              <Close />
+            </IconButton>
+            <IconButton
+              aria-label="delete"
+              size="small"
+              onClick={_ => handleRecordDelete(row)}
+            >
+              <Delete />
+            </IconButton>
+          </>
         )}
       </Grid>
       {/* Date field */}
