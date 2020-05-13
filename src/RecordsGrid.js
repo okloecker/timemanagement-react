@@ -15,6 +15,12 @@ import {
 import { makeStyles } from "@material-ui/core/styles";
 import { Add, Close, Delete, Done, Edit } from "@material-ui/icons";
 import Alert from "@material-ui/lab/Alert";
+import {
+  MuiPickersUtilsProvider,
+  KeyboardDatePicker,
+  KeyboardTimePicker
+} from "@material-ui/pickers";
+import DateFnsUtils from "@date-io/date-fns";
 import axios from "axios";
 import format from "date-fns/format";
 import isDate from "date-fns/isDate";
@@ -314,7 +320,7 @@ const RecordsGrid = props => {
   };
 
   const handleUndoDelete = async row => {
-    if(undoRow) {
+    if (undoRow) {
       await handleRecordAdd(undoRow);
       setUndoRow(null);
     }
@@ -412,7 +418,10 @@ const RecordsGrid = props => {
         }}
         open={!!snackMessage}
         autoHideDuration={15000}
-        onClose={_ => {setUndoRow(null); setSnackMessage(null)}}
+        onClose={_ => {
+          setUndoRow(null);
+          setSnackMessage(null);
+        }}
         message={(snackMessage || {}).message}
         action={
           <React.Fragment>
@@ -537,33 +546,57 @@ const Record = ({
       {/* Date field */}
       <Grid item xs={12} md={2}>
         <Box m={1}>
-          <EditableTextField
-            editing={editing}
-            name={"date"}
-            value={values.date}
-            rovalue={newDay ? row.date : ""}
-            onChange={handleChange}
-            label="Date"
-            errors={errors}
-          />
+          {editing ? (
+            <KeyboardDatePicker
+              margin="normal"
+              id="date-picker"
+              label="Date"
+              format={DATE_FORMAT}
+              value={parse(values.date, DATE_FORMAT, new Date())}
+              onChange={v =>
+                isValid(v) && setFieldValue("date", format(v, DATE_FORMAT))
+              }
+              error={!!errors.date}
+              helperText={errors.date}
+              KeyboardButtonProps={{
+                "aria-label": "change date"
+              }}
+            />
+          ) : (
+            <div>{values.date}</div>
+          )}
         </Box>
       </Grid>
       {/* Time field */}
-      <Grid item xs={12} md={1}>
+      <Grid item xs={12} md={editing ? 2 : 1}>
         <Box m={1}>
-          <EditableTextField
-            editing={editing}
-            name={"timeString"}
-            value={values.timeString}
-            rovalue={row.timeString}
-            onChange={handleChange}
-            label="Hours"
-            errors={errors}
-          />
+          {editing ? (
+            <MuiPickersUtilsProvider utils={DateFnsUtils}>
+              <KeyboardTimePicker
+                margin="normal"
+                id="date-time-dialog"
+                label="Time Spent"
+                format="HH:mm"
+                ampm={false}
+                autoOk
+                value={parse(values.timeString, "HH:mm", new Date())}
+                onChange={v =>
+                  isValid(v) && setFieldValue("timeString", format(v, "HH:mm"))
+                }
+                error={!!errors["timeString"]}
+                helperText={errors["timeString"]}
+                KeyboardButtonProps={{
+                  "aria-label": "change time spent"
+                }}
+              />
+            </MuiPickersUtilsProvider>
+          ) : (
+            <div>{values.timeString}</div>
+          )}
         </Box>
       </Grid>
       {/* Note field */}
-      <Grid item xs={12} md={8}>
+      <Grid item xs={12} md={editing ? 7 : 8}>
         <Box m={1}>
           <EditableTextField
             editing={editing}
