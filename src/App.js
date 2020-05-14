@@ -1,37 +1,30 @@
+import { Box, Button, Snackbar } from "@material-ui/core";
+import axios from "axios";
+import Dashboard from "Dashboard";
+import { deleteCookie, getCookie } from "helpers/cookies";
+import Login from "Login";
 import React from "react";
+import { useMutation } from "react-query";
 import {
   BrowserRouter as Router,
   Redirect,
-  Switch,
-  Route
+  Route,
+  Switch
 } from "react-router-dom";
-
-import Login from "Login";
-import Dashboard from "Dashboard";
-import { deleteCookie, getCookie } from "helpers/cookies";
-import { Box, Button, Snackbar } from "@material-ui/core";
+import Signup from "Signup";
 import * as storage from "storage/storage";
-import { useMutation } from "react-query";
-import axios from "axios";
 
 /*
  * Entry point for app, containing the routes and logout handling.
  */
 function App() {
-  const [authToken, setAuthToken] = React.useState();
+  const [authToken, setAuthToken] = React.useState(getCookie("authToken"));
   const [logoutResult, setLogoutResult] = React.useState({});
-
-  React.useEffect(() => {
-    setAuthToken(getCookie("authToken"));
-  }, []);
 
   const getLogout = () =>
     axios("/app/logout", {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "X-AUTH-TOKEN": authToken
-      }
+      headers: { "Content-Type": "application/json", "X-AUTH-TOKEN": authToken }
     });
   const [mutate] = useMutation(getLogout);
   const handleLogout = async () => {
@@ -71,7 +64,7 @@ function App() {
 
   return (
     <div>
-      {authToken && (
+      {authToken ? (
         <Box m={2}>
           <Button
             type="submit"
@@ -82,31 +75,30 @@ function App() {
             Log out
           </Button>
         </Box>
-      )}
+      ) : null}
       <Router>
-        <Switch>
-          {!authToken && (
-            <>
-              <Route path="/login">
-                <Login setAuthToken={setAuthToken} />
-              </Route>
-              <Redirect to="/login" />
-            </>
-          )}
-          {!!authToken && (
-            <>
-              <Route path="/dashboard" component={Dashboard} exact />
-              <Redirect to="/dashboard" />
-            </>
-          )}
-        </Switch>
+        {!!authToken ? (
+          <Switch>
+            <Route path="/dashboard">
+              <Dashboard />
+            </Route>
+            <Redirect to="/dashboard" />
+          </Switch>
+        ) : (
+          <Switch>
+            <Route path="/login">
+              <Login setAuthToken={setAuthToken} />
+            </Route>
+            <Route path="/signup">
+              <Signup setAuthToken={setAuthToken} />
+            </Route>
+            <Redirect to="/login" />
+          </Switch>
+        )}
       </Router>
 
       <Snackbar
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "left"
-        }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         open={logoutResult.ok !== undefined}
         autoHideDuration={6000}
         onClose={handleCloseLogoutSnack}
