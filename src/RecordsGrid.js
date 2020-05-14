@@ -1,16 +1,14 @@
+import React from "react";
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Divider,
   Fab,
   Grid,
   IconButton,
   LinearProgress,
   Snackbar,
-  TextField,
-  Typography
+  TextField
 } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import { Add, Close, Delete, Done, Edit } from "@material-ui/icons";
@@ -29,9 +27,9 @@ import parse from "date-fns/parse";
 import parseISO from "date-fns/parseISO";
 import { Formik } from "formik";
 import { getCookie } from "helpers/cookies";
-import React from "react";
 import { queryCache, useMutation, useQuery } from "react-query";
 import { getStorageItem } from "storage/storage";
+import EmptyState from "EmptyState";
 
 const PAGE_SIZE = 30;
 const DATE_FORMAT = "yyyy-MM-dd";
@@ -46,6 +44,7 @@ const useStyles = makeStyles({
   fab: { paddingLeft: "8px" }
 });
 
+/* Async backend call to fetch data */
 const fetchRecords = async (
   key,
   { startDate, endDate, contains, authToken }
@@ -96,40 +95,53 @@ const updateRecord = ({ row, user, authToken, method = "PUT" }) => {
   });
 };
 
+/*
+ * Component to show time records.
+ * Responsive layout achieved by using Grid (not Table): on narrow screens, the
+ * rows will stack internally.
+ */
 const RecordsGrid = props => {
   const classes = useStyles();
 
   const authToken = getCookie("authToken");
 
+  // "editing" state: row id to edit
   const [editRow, setEditRow] = React.useState();
+
+  // "adding" state: row object to add
   const [addRow, setAddRow] = React.useState(null);
+
+  // "undo" state: row object to undo
   const [undoRow, setUndoRow] = React.useState();
+
+  // general error object
   const [globalError, setGlobalError] = React.useState();
+
+  // undo message
   const [snackMessage, setSnackMessage] = React.useState();
+
+  // current page if paging
   const [page, setPage] = React.useState(1);
 
+  /* On unmounting, clear react-query cache, otherwise it will continue to
+   * fetch
+   */
   React.useEffect(() => {
     return () => {
-      // on unmounting, clear react-query cache, otherwise it will continue to
-      // fetch
       queryCache.clear();
     };
   }, []);
 
+  /* Clear global error when showing/submitting record edit or add form. */
   React.useEffect(
     () => {
       if (editRow === null) setGlobalError(null);
-    },
-    [editRow]
-  );
-
-  React.useEffect(
-    () => {
       if (addRow === null) setGlobalError(null);
     },
-    [addRow]
+    [addRow, editRow]
   );
 
+  /* Whenever user deletes record, pop up a snack to allow undo */
   React.useEffect(
     () => {
       if (undoRow) {
@@ -143,45 +155,40 @@ const RecordsGrid = props => {
     [undoRow]
   );
 
+  const recordsQueryKey = [
+    "records",
+    {
+      startDate: props.startDate,
+      endDate: props.endDate,
+      authToken,
+      contains: props.searchText
+    }
+  ];
+
+  /* Filtered query to fetch data */
   const { status, data, error } = useQuery(
-    [
-      "records",
-      {
-        startDate: props.startDate,
-        endDate: props.endDate,
-        authToken,
-        contains: props.searchText
-      }
-    ],
+    recordsQueryKey,
     fetchRecords,
     { staleTime: 10 * 1000 } // milliseconds
   );
 
-  // update record with new data, optimistically showing new data in table, but
+  // Update record with new data, optimistically showing new data in table, but
   // rolling back on error
   const [mutate] = useMutation(updateRecord, {
     onMutate: ({ row: newRow, method }) => {
-      const key = [
-        "records",
-        {
-          startDate: props.startDate,
-          endDate: props.endDate,
-          authToken,
-          contains: props.searchText
-        }
-      ];
-      const previousData = queryCache.getQueryData(key);
+      const previousData = queryCache.getQueryData(recordsQueryKey);
+      // optimistically change, add or delete in-memory records:
       switch (method) {
         case "PUT":
           queryCache.setQueryData(
-            key,
+            recordsQueryKey,
             previousData.map(r => (r.id === newRow.id ? newRow : r))
           );
           setEditRow(null);
           break;
         case "POST":
           queryCache.setQueryData(
-            key,
+            recordsQueryKey,
             previousData
               .concat({ ...newRow, id: TMP_ID })
               .sort((a, b) => b.id - a.id)
@@ -191,7 +198,7 @@ const RecordsGrid = props => {
         case "DELETE":
           setUndoRow(newRow);
           queryCache.setQueryData(
-            key,
+            recordsQueryKey,
             previousData.filter(r => r.id !== newRow.id)
           );
           break;
@@ -199,31 +206,37 @@ const RecordsGrid = props => {
           console.log("Unknown method", method);
       }
       setGlobalError(null);
-      return () => queryCache.setQueryData(key, previousData); // the rollback function
+      return () => queryCache.setQueryData(recordsQueryKey, previousData); // the rollback function
     },
     onError: (err, { row, method }, rollback) => {
+      /* The reasons are deeply nested objects: {data:{error:{message<STRING>}}}
+       * or {data: {timeString: [err,...], date: [err,...], ...}}
+       * To show them in Alert box, create a list out of them:
+       */
       let reasons = [
         ((((err || {}).response || {}).data || {}).error || {}).message
       ];
-      if (!reasons.length || !reasons[0])
+      if (!reasons.length || !reasons[0]/* if there was no data.error.message */)
         reasons = ((err || {}).response || {}).data
           ? Object.keys(err.response.data).reduce(
               (acc, k) => acc.concat(err.response.data[k].flat()),
               []
             )
           : [];
-      rollback();
+      rollback(); // revert to previous records
       switch (method) {
         case "PUT":
           if (row.id !== TMP_ID) {
-            // user must correct error or reset values
+            // user must correct error or reset values, open edit form again:
             setEditRow(row.id);
           }
           break;
         case "POST":
+          // user must correct error or reset values, open add form again:
           setAddRow(row);
           break;
         case "DELETE":
+          // nothing else to do here
           break;
         default:
           console.log("Unknown method", method);
@@ -244,14 +257,50 @@ const RecordsGrid = props => {
     }
   });
 
-  if (status === "loading") {
-    return (
-      <Box m={2} mt={3}>
-        <LinearProgress />
-      </Box>
-    );
-  }
+  /* User edited record: put new values to backend */
+  const handleRowUpdate = async ({ row, newRow }) =>
+    await mutate({
+      row: {
+        ...row,
+        ...newRow
+      },
+      method: "PUT",
+      authToken
+    });
 
+  /* User clicked "+" button: trigger showing a new record in edit mode */
+  const handleAddRecord = async ({ newRow }) => {
+    setAddRow({});
+  };
+
+  /* Post new record to backend */
+  const handleRecordAdd = async record => {
+    await mutate({
+      row: { ...record, user: JSON.parse(getStorageItem("userInfo")).user },
+      method: "POST",
+      authToken
+    });
+  };
+
+  /* User clicked delete on record */
+  const handleRecordDelete = async record => {
+    await mutate({
+      row: record,
+      method: "DELETE",
+      authToken
+    });
+  };
+
+  /* User clicked "undo" after delete */
+  const handleUndoDelete = async row => {
+    if (undoRow) {
+      await handleRecordAdd(undoRow);
+      setUndoRow(null);
+    }
+    setSnackMessage(null);
+  };
+
+  /* Data fetching turned up error */
   if (status === "error") {
     return (
       <Snackbar
@@ -266,92 +315,35 @@ const RecordsGrid = props => {
     );
   }
 
-  if (data && data.error) {
-    return <Alert severity="error">{data.error.statusText}</Alert>;
-  }
-
-  if (!data || !data.length) {
-    return (
-      <Card className={classes.root}>
-        <CardContent>
-          <Typography
-            className={classes.title}
-            color="textSecondary"
-            gutterBottom
-          >
-            There is no data to display for these dates, try to change start and
-            end dates.
-          </Typography>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const handleRowUpdate = async ({ row, newRow }) =>
-    await mutate({
-      row: {
-        ...row,
-        ...newRow
-      },
-      method: "PUT",
-      authToken
-    });
-
-  /* trigger showing a new record in edit mode */
-  const handleAddRecord = async ({ newRow }) => {
-    setAddRow({});
-  };
-
-  /* post new record to backend */
-  const handleRecordAdd = async record => {
-    await mutate({
-      row: { ...record, user: JSON.parse(getStorageItem("userInfo")).user },
-      method: "POST",
-      authToken
-    });
-  };
-
-  const handleRecordDelete = async record => {
-    await mutate({
-      row: record,
-      method: "DELETE",
-      authToken
-    });
-  };
-
-  const handleUndoDelete = async row => {
-    if (undoRow) {
-      await handleRecordAdd(undoRow);
-      setUndoRow(null);
-    }
-    setSnackMessage(null);
-  };
-
+  // values for current page:
   const firstIdx = Math.max(0, page - 1) * PAGE_SIZE;
   const lastIdx = page * PAGE_SIZE;
-  const pageData = data.slice(firstIdx, lastIdx);
+  const pageData = Array.isArray(data) ? data.slice(firstIdx, lastIdx) : [];
 
   return (
     <Box mt={2}>
-      <div className={classes.controls}>
-        <span className={classes.pagination}>
-          <Pagination
-            count={Math.ceil(data.length / PAGE_SIZE)}
-            showFirstButton
-            showLastButton
-            onChange={(e, p) => setPage(p)}
+      {/* Empty state: no records found either because filter criteria are too
+        strict or there are simply no records for user. 
+        */}
+      {!data ||
+        (!data.length && (
+          <EmptyState
+            classes={classes}
+            handleAddRecord={handleAddRecord}
+            addRow={addRow}
+            setAddRow={setAddRow}
+            handleRecordAdd={handleRecordAdd}
           />
-        </span>
-        &emsp;
-        <Fab
-          color="primary"
-          aria-label="add"
-          onClick={handleAddRecord}
-          size="small"
-        >
-          <Add />
-        </Fab>
-      </div>
+        ))}
+
+      {/* Loading state */}
+      {status === "loading" && (
+        <Box m={2} mt={3}>
+          <LinearProgress />
+        </Box>
+      )}
+
+      {/* General error alert */}
       {globalError && globalError.reasons && (
         <Alert severity="error">
           {globalError.message}
@@ -363,6 +355,42 @@ const RecordsGrid = props => {
         </Alert>
       )}
 
+      {/* Error alert from data */}
+      {(data || {}).error && (
+        <Alert severity="error">{data.error.statusText}</Alert>
+      )}
+
+      {/* Pagination controls (if more data than fits on page 
+          AND button to add record 
+        */}
+      {!!pageData.length && (
+        <div className={classes.controls}>
+          {pageData.length > PAGE_SIZE && (
+            <>
+              <span className={classes.pagination}>
+                <Pagination
+                  count={Math.ceil(data.length / PAGE_SIZE)}
+                  showFirstButton
+                  showLastButton
+                  onChange={(e, p) => setPage(p)}
+                />
+              </span>
+              &emsp;
+            </>
+          )}
+          <Fab
+            color="primary"
+            aria-label="add"
+            onClick={handleAddRecord}
+            size="small"
+          >
+            <Add />
+          </Fab>
+        </div>
+      )}
+
+      {/* Form to add a record after user clicked "+" button or again after
+        adding failed */}
       {addRow && (
         <AddTableRow
           onAdd={handleRecordAdd}
@@ -371,7 +399,8 @@ const RecordsGrid = props => {
         />
       )}
 
-      {pageData.length ? (
+      {/* There is some data to display */}
+      {!!pageData.length &&
         pageData.map((row, i, arr) => (
           <EditableTableRow
             key={row.id}
@@ -385,30 +414,19 @@ const RecordsGrid = props => {
             newDay={i === 0 || row.date !== arr[Math.max(0, i - 1)].date}
             classes={classes}
           />
-        ))
-      ) : (
-        <Grid container>
-          <Grid xs={12} md={6}>
-            <Card className={classes.root}>
-              <CardContent>
-                <Typography
-                  className={classes.title}
-                  color="textSecondary"
-                  gutterBottom
-                >
-                  There is no data to display for this search text.
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+        ))}
+
+      {/* Additional paging controls at bottom of page */}
+      {pageData.length > PAGE_SIZE && (
+        <Pagination
+          count={Math.ceil(data.length / PAGE_SIZE)}
+          showFirstButton
+          showLastButton
+          onChange={(e, p) => setPage(p)}
+        />
       )}
-      <Pagination
-        count={Math.ceil(data.length / PAGE_SIZE)}
-        showFirstButton
-        showLastButton
-        onChange={(e, p) => setPage(p)}
-      />
+
+      {/* Snacks to show after delete with undo button */}
       <Snackbar
         anchorOrigin={{
           vertical: "bottom",
@@ -445,6 +463,9 @@ const RecordsGrid = props => {
   );
 };
 
+/*
+ * Form wrapper for record.
+ */
 const EditableTableRow = ({
   row,
   newDay,
@@ -492,6 +513,11 @@ const EditableTableRow = ({
   );
 };
 
+/*
+ * A record Grid container, will show readonly data or form if editing.
+ * When not editing, show pencil button to start editing.
+ * When editing, show checkmark/save, x/cancel and trash bin buttons.
+*/
 const Record = ({
   values,
   handleChange,
@@ -507,11 +533,11 @@ const Record = ({
   classes
 }) => {
   return (
-    <Grid container className={editing ? classes.editCell : ""}>
+    <Grid container className={editing ? classes.editCell : ""} spacing={1}>
       <Grid item xs={12}>
         {newDay && <Divider variant="fullWidth" />}
       </Grid>
-      {/* Edit/Cancel icons */}
+      {/* Edit/Cancel etc icons */}
       <EditControls
         editing={editing}
         setEditing={setEditing}
@@ -525,7 +551,7 @@ const Record = ({
         {editing ? (
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
             <KeyboardDatePicker
-              margin="normal"
+              margin="dense"
               id="date-picker"
               label="Date"
               format={DATE_FORMAT}
@@ -551,7 +577,7 @@ const Record = ({
         {editing ? (
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
             <KeyboardTimePicker
-              margin="normal"
+              margin="dense"
               id="date-time-dialog"
               label="Time Spent"
               format="HH:mm"
@@ -611,7 +637,7 @@ const EditableTextField = ({
 }) =>
   editing ? (
     <TextField
-      margin="normal"
+      margin="dense"
       name={name}
       label={label}
       id={name}
@@ -626,7 +652,7 @@ const EditableTextField = ({
     <Box m={1}>
       {(rovalue || "").split("\n").map((line, i, arr) => (
         <div style={{ overflow: "auto" }} key={i + line}>
-          {i === arr.length - 1 ? line : line + "↵ "}
+          {i === arr.length - 1 ? line : line + " ↵ "}
         </div>
       ))}
     </Box>
@@ -652,7 +678,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
       setFieldValue,
       errors
     }) => (
-      <Grid container className={classes.editCell}>
+      <Grid container className={classes.editCell} spacing={1}>
         {/* Done/Cancel icons */}
         <Grid item xs={12} md={1}>
           <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
@@ -672,7 +698,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
         <Grid item xs={12} md={2}>
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
             <KeyboardDatePicker
-              margin="normal"
+              margin="dense"
               id="date-picker"
               label="Date"
               format={DATE_FORMAT}
@@ -692,7 +718,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
         <Grid item xs={12} md={2}>
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
             <KeyboardTimePicker
-              margin="normal"
+              margin="dense"
               id="date-time-dialog"
               label="Time Spent"
               format="HH:mm"
@@ -727,6 +753,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
   </Formik>
 );
 
+/* Done/Close buttons in "add" form */
 const AddControls = ({ handleSubmit, handleReset }) => (
   <Grid item xs={12} md={1}>
     <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
@@ -738,6 +765,7 @@ const AddControls = ({ handleSubmit, handleReset }) => (
   </Grid>
 );
 
+/* Done/Edit/Cancel/Delete icon buttons in "edit" form */
 const EditControls = ({
   editing,
   setEditing,
@@ -779,6 +807,7 @@ const EditControls = ({
     </Grid>
   ) : null;
 
+/* Validation functions for formal correctness of date and timeString fields */
 const validateRecord = values => {
   const errors = {};
   if (!values.date) {
@@ -797,4 +826,5 @@ const validateRecord = values => {
   return errors;
 };
 
+// Memoize component to minimize rendering of complex Grid
 export default React.memo(RecordsGrid);
