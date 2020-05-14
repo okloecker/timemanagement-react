@@ -41,7 +41,7 @@ const useStyles = makeStyles({
   root: { minWidth: 275 },
   title: { fontSize: 20, textAlign: "center" },
   editCell: { backgroundColor: "#ffffe4", paddingTop: "8px" },
-  controls: { paddingTop: "8px", paddingBottom: "16px" },
+  controls: { paddingTop: "16px", paddingBottom: "16px" },
   pagination: { display: "inline-block" },
   fab: { paddingLeft: "8px" }
 });
@@ -246,7 +246,7 @@ const RecordsGrid = props => {
 
   if (status === "loading") {
     return (
-      <Box m={2}>
+      <Box m={2} mt={3}>
         <LinearProgress />
       </Box>
     );
@@ -332,7 +332,7 @@ const RecordsGrid = props => {
   const pageData = data.slice(firstIdx, lastIdx);
 
   return (
-    <Box m={2}>
+    <Box mt={2}>
       <div className={classes.controls}>
         <span className={classes.pagination}>
           <Pagination

@@ -9,7 +9,7 @@ import {
 import Login from "Login";
 import Dashboard from "Dashboard";
 import { deleteCookie, getCookie } from "helpers/cookies";
-import { Button, Snackbar } from "@material-ui/core";
+import { Box, Button, Snackbar } from "@material-ui/core";
 import * as storage from "storage/storage";
 import { useMutation } from "react-query";
 import axios from "axios";
@@ -72,14 +72,16 @@ function App() {
   return (
     <div>
       {authToken && (
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          onClick={handleLogout}
-        >
-          Log out
-        </Button>
+        <Box m={2}>
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            onClick={handleLogout}
+          >
+            Log out
+          </Button>
+        </Box>
       )}
       <Router>
         <Switch>

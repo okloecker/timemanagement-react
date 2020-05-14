@@ -104,12 +104,12 @@ const Dashboard = props => {
             >
               {({ values, errors, handleChange, setFieldValue }) => (
                 <MuiPickersUtilsProvider utils={DateFnsUtils}>
-                  <Grid container justify="center" spacing={5}>
-                    <Box m={2} minWidth={170} width={"10%"}>
+                  <Grid container justify="center" spacing={0}>
+                    <Box mr={1} minWidth={170} width={"10%"}>
                       <Grid item>
                         <KeyboardDatePicker
-                          margin="normal"
                           id="date-picker-dialog-start"
+                          margin="dense"
                           label="Start Date"
                           format="yyyy-MM-dd"
                           value={values.selectedStartDate}
@@ -128,11 +128,11 @@ const Dashboard = props => {
                         />
                       </Grid>
                     </Box>
-                    <Box m={2} minWidth={170} width={"10%"}>
+                    <Box mr={1} minWidth={170} width={"10%"}>
                       <Grid item>
                         <KeyboardDatePicker
-                          margin="normal"
                           id="date-picker-dialog-end"
+                          margin="dense"
                           label="End Date"
                           format="yyyy-MM-dd"
                           value={values.selectedEndDate}
@@ -151,11 +151,11 @@ const Dashboard = props => {
                         />
                       </Grid>
                     </Box>
-                    <Box m={2}>
+                    <Box m={0}>
                       <Grid item>
                         <TextField
-                          margin="normal"
                           name="searchText"
+                          margin="dense"
                           label="Search"
                           id="searchbox"
                           value={values.searchText}
