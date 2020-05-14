@@ -48,17 +48,17 @@ const useStyles = makeStyles(theme => ({
 }));
 
 /*
- * Login container.
- * Note that it is as of writing mostly identical to Signup, but this will
+ * Signup container.
+ * Note that it is as of writing mostly identical to Login, but this will
  * change with a different signup/login workflow.
 */
-const Login = props => {
+const Signup = props => {
   const classes = useStyles();
   const [isShowPassword, setShowPassword] = React.useState(false);
   const [globalError, setGlobalError] = React.useState();
 
-  const postLogin = ({ username, password }) =>
-    axios("/app/login", {
+  const postSignup = ({ username, password }) =>
+    axios("/app/signup", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -68,7 +68,7 @@ const Login = props => {
         password
       }
     });
-  const [mutate] = useMutation(postLogin);
+  const [mutate] = useMutation(postSignup);
 
   const handleClickShowPassword = () => {
     setShowPassword(prevIsShowPassword => !isShowPassword);
@@ -93,7 +93,7 @@ const Login = props => {
               {
                 onSuccess: response => {
                   setStatus({
-                    loginSuccessMessage: response.data.success.message
+                    signupSuccessMessage: response.data.success.message
                   });
                   props.setAuthToken(getCookie("authToken"));
                   const { message, ...rest } = response.data.success;
@@ -125,7 +125,7 @@ const Login = props => {
                   }
                   if (error.response.statusText) {
                     setGlobalError({
-                      message: `Login failed with error: ${
+                      message: `Signup failed with error: ${
                         error.response.statusText
                       }`
                     });
@@ -152,7 +152,7 @@ const Login = props => {
             <CssBaseline />
             <div className={classes.paper}>
               <Typography component="h1" variant="h5">
-                Log in
+                Sign up
               </Typography>
               <form className={clsx(classes.form)} onSubmit={handleSubmit}>
                 <TextField
@@ -206,18 +206,18 @@ const Login = props => {
                   color="primary"
                   className={classes.submit}
                 >
-                  Log in
+                  Sign up
                 </Button>
                 {isSubmitting && <LinearProgress />}
-                {(status || {}).loginSuccessMessage && (
+                {(status || {}).signupSuccessMessage && (
                   <Alert severity="success">
-                    {(status || {}).loginSuccessMessage}
+                    {(status || {}).signupSuccessMessage}
                   </Alert>
                 )}
                 <Grid container>
                   <Grid item>
-                    <Link href="/signup" variant="body2">
-                      {"Don't have an account? Sign Up"}
+                    <Link href="/login" variant="body2">
+                      {"Login"}
                     </Link>
                   </Grid>
                 </Grid>
@@ -236,4 +236,4 @@ const Login = props => {
   );
 };
 
-export default Login;
+export default Signup;
