@@ -1,7 +1,6 @@
 import { Box, Button, Snackbar } from "@material-ui/core";
 import axios from "axios";
 import Dashboard from "Dashboard";
-import { deleteCookie, getCookie } from "helpers/cookies";
 import Login from "Login";
 import React from "react";
 import { useMutation } from "react-query";
@@ -12,19 +11,22 @@ import {
   Switch
 } from "react-router-dom";
 import Signup from "Signup";
-import * as storage from "storage/storage";
+import { getStorageItemJson, removeStorageItem } from "storage/storage";
 
 /*
  * Entry point for app, containing the routes and logout handling.
  */
 function App() {
-  const [authToken, setAuthToken] = React.useState(getCookie("authToken"));
+  const [authToken, setAuthToken] = React.useState(
+    ((getStorageItemJson("userInfo") || {}).authToken || {}).token
+  );
   const [logoutResult, setLogoutResult] = React.useState({});
 
   const getLogout = () =>
-    axios("/app/logout", {
-      method: "GET",
-      headers: { "Content-Type": "application/json", "X-AUTH-TOKEN": authToken }
+    axios("/api/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", AuthToken: authToken },
+      data: { userId: (getStorageItemJson("userInfo") || {}).id }
     });
   const [mutate] = useMutation(getLogout);
   const handleLogout = async () => {
@@ -32,10 +34,8 @@ function App() {
       await mutate(null, {
         onSuccess: response => {
           setLogoutResult({ ok: true, message: response.data.success.message });
-          deleteCookie("authToken");
-          deleteCookie("PLAY_SESSION");
           setAuthToken(null);
-          storage.local.removeItem("userInfo");
+          removeStorageItem("userInfo");
         },
         onError: error => {
           if (error.response.data) {
@@ -46,10 +46,8 @@ function App() {
               });
             }
           }
-          deleteCookie("authToken");
-          deleteCookie("PLAY_SESSION");
           setAuthToken(null);
-          storage.local.removeItem("userInfo");
+          removeStorageItem("userInfo");
         }
       });
     } catch (err) {

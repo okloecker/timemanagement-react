@@ -20,20 +20,22 @@ import {
 } from "@material-ui/pickers";
 import DateFnsUtils from "@date-io/date-fns";
 import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
+import * as imm from "object-path-immutable";
 import format from "date-fns/format";
 import isDate from "date-fns/isDate";
 import isValid from "date-fns/isValid";
-import parse from "date-fns/parse";
 import parseISO from "date-fns/parseISO";
+import compareDesc from "date-fns/compareDesc";
 import { Formik } from "formik";
-import { getCookie } from "helpers/cookies";
 import { queryCache, useMutation, useQuery } from "react-query";
-import { getStorageItem } from "storage/storage";
+import { getStorageItemJson } from "storage/storage";
 import EmptyState from "EmptyState";
 
 const PAGE_SIZE = 30;
 const DATE_FORMAT = "yyyy-MM-dd";
-const TMP_ID = Number.MAX_SAFE_INTEGER;
+
+const recordSortFunction = (a,b) => compareDesc(a.startTime, b.startTime)
 
 const useStyles = makeStyles({
   root: { minWidth: 275 },
@@ -59,13 +61,13 @@ const fetchRecords = async (
       DATE_FORMAT
     );
     const result = await axios(
-      `/app/timerecords?dateFrom=${from}&dateTo=${to}${
+      `/api/timerecords?dateFrom=${from}&dateTo=${to}${
         contains ? "&contains=" + contains : ""
       }`,
       {
         headers: {
           "Content-Type": "application/json",
-          "X-AUTH-TOKEN": authToken
+          AuthToken: authToken
         }
       }
     );
@@ -73,7 +75,14 @@ const fetchRecords = async (
       return {
         error: { status: result.status, statusText: result.statusText }
       };
-    } else return result.data;
+    } else
+      return result.data.data
+        .map(d => ({
+          ...d,
+          startTime: parseISO(d.startTime),
+          endTime: parseISO(d.endTime)
+        }))
+        .sort(recordSortFunction);
   } catch (err) {
     console.log("ERROR:", err);
     return {
@@ -87,10 +96,10 @@ const fetchRecords = async (
 
 const updateRecord = ({ row, user, authToken, method = "PUT" }) => {
   let fragment = method === "POST" ? "" : `/${row.id}`;
-  const url = `/app/timerecord${fragment}`;
+  const url = `/api/timerecords${fragment}`;
   return axios(url, {
     method, // "PUT" or "POST" or "DELETE"
-    headers: { "Content-Type": "application/json", "X-AUTH-TOKEN": authToken },
+    headers: { "Content-Type": "application/json", AuthToken: authToken },
     data: row
   });
 };
@@ -103,7 +112,9 @@ const updateRecord = ({ row, user, authToken, method = "PUT" }) => {
 const RecordsGrid = props => {
   const classes = useStyles();
 
-  const authToken = getCookie("authToken");
+  const authToken = ((getStorageItemJson("userInfo") || {}).authToken || {})
+    .token;
+  const userId = (getStorageItemJson("userInfo") || {}).id;
 
   // "editing" state: row id to edit
   const [editRow, setEditRow] = React.useState();
@@ -177,6 +188,8 @@ const RecordsGrid = props => {
   const [mutate] = useMutation(updateRecord, {
     onMutate: ({ row: newRow, method }) => {
       const previousData = queryCache.getQueryData(recordsQueryKey);
+      console.log("newRow", { newRow });
+      console.log("previousData", { previousData });
       // optimistically change, add or delete in-memory records:
       switch (method) {
         case "PUT":
@@ -190,8 +203,8 @@ const RecordsGrid = props => {
           queryCache.setQueryData(
             recordsQueryKey,
             previousData
-              .concat({ ...newRow, id: TMP_ID })
-              .sort((a, b) => b.id - a.id)
+              .concat({ ...newRow })
+              .sort((a, b) => compareDesc(a.startTime, b.startTime))
           );
           setAddRow(null);
           break;
@@ -209,24 +222,13 @@ const RecordsGrid = props => {
       return () => queryCache.setQueryData(recordsQueryKey, previousData); // the rollback function
     },
     onError: (err, { row, method }, rollback) => {
-      /* The reasons are deeply nested objects: {data:{error:{message<STRING>}}}
-       * or {data: {timeString: [err,...], date: [err,...], ...}}
-       * To show them in Alert box, create a list out of them:
-       */
-      let reasons = [
-        ((((err || {}).response || {}).data || {}).error || {}).message
-      ];
-      if (!reasons.length || !reasons[0]/* if there was no data.error.message */)
-        reasons = ((err || {}).response || {}).data
-          ? Object.keys(err.response.data).reduce(
-              (acc, k) => acc.concat(err.response.data[k].flat()),
-              []
-            )
-          : [];
+      const rqData = err.response.data; // react-query object
+      const validation = rqData.error.validation;
+      let reasons = validation;
       rollback(); // revert to previous records
       switch (method) {
         case "PUT":
-          if (row.id !== TMP_ID) {
+          if (row.id) {
             // user must correct error or reset values, open edit form again:
             setEditRow(row.id);
           }
@@ -246,14 +248,23 @@ const RecordsGrid = props => {
         reasons
       });
     },
-    onSuccess: data => {
-      // TODO: this fetches all data; a better way would be if the backend
-      // returned the new item so we could queryCache.setQueryData() with it,
-      // replacing the optimistically set one with temporary ID; but the
-      // backend just says "Record add was successful"
-      queryCache.refetchQueries("records", {
-        force: true
-      });
+    onSuccess: ({ data: rqData }) => {
+      // update current cached data with latest from server
+      console.log('rqData', {rqData});
+      const previousData = queryCache.getQueryData(recordsQueryKey);
+      queryCache.setQueryData(
+        recordsQueryKey,
+        previousData.map(r => {
+          return r.tmpId && rqData.data.tmpId === r.tmpId
+            ? imm
+                .wrap(rqData.data)
+                .del("tmpId")
+                .set("startTime", parseISO(rqData.data.startTime))
+                .value()
+            : r
+        }
+        ).sort(recordSortFunction)
+      );
     }
   });
 
@@ -276,7 +287,7 @@ const RecordsGrid = props => {
   /* Post new record to backend */
   const handleRecordAdd = async record => {
     await mutate({
-      row: { ...record, user: JSON.parse(getStorageItem("userInfo")).user },
+      row: { ...record, userId, tmpId: uuidv4() },
       method: "POST",
       authToken
     });
@@ -401,20 +412,22 @@ const RecordsGrid = props => {
 
       {/* There is some data to display */}
       {!!pageData.length &&
-        pageData.map((row, i, arr) => (
-          <EditableTableRow
-            key={row.id}
-            editing={row.id === editRow}
-            row={row}
-            setEditing={setEditRow}
-            handleRecordDelete={handleRecordDelete}
-            onUpdate={v => {
-              if (v !== row.date) handleRowUpdate({ row, newRow: v });
-            }}
-            newDay={i === 0 || row.date !== arr[Math.max(0, i - 1)].date}
-            classes={classes}
-          />
-        ))}
+        pageData.map((row, i, arr) => {
+          return (
+            <EditableTableRow
+              key={row.id || row.tmpId /*assigned during optimistic update*/}
+              editing={row.id === editRow}
+              row={row}
+              setEditing={setEditRow}
+              handleRecordDelete={handleRecordDelete}
+              onUpdate={v => {
+                if (v !== row.date) handleRowUpdate({ row, newRow: v });
+              }}
+              newDay={i === 0 || row.date !== arr[Math.max(0, i - 1)].date}
+              classes={classes}
+            />
+          );
+        })}
 
       {/* Additional paging controls at bottom of page */}
       {pageData.length > PAGE_SIZE && (
@@ -478,8 +491,7 @@ const EditableTableRow = ({
   return (
     <Formik
       initialValues={{
-        date: row.date,
-        timeString: row.timeString,
+        startTime: row.startTime,
         note: row.note
       }}
       validate={validateRecord}
@@ -517,7 +529,7 @@ const EditableTableRow = ({
  * A record Grid container, will show readonly data or form if editing.
  * When not editing, show pencil button to start editing.
  * When editing, show checkmark/save, x/cancel and trash bin buttons.
-*/
+ */
 const Record = ({
   values,
   handleChange,
@@ -555,20 +567,18 @@ const Record = ({
               id="date-picker"
               label="Date"
               format={DATE_FORMAT}
-              value={parse(values.date, DATE_FORMAT, new Date())}
-              onChange={v =>
-                isValid(v) && setFieldValue("date", format(v, DATE_FORMAT))
-              }
-              error={!!errors.date}
-              helperText={errors.date}
+              value={values.startTime}
+              onChange={v => isValid(v) && setFieldValue("startTime", v)}
+              error={!!errors.startTime}
+              helperText={errors.startTime}
               KeyboardButtonProps={{
-                "aria-label": "change date"
+                "aria-label": "change start time"
               }}
             />
           </MuiPickersUtilsProvider>
         ) : (
           <Box m={1}>
-            <div>{values.date}</div>
+            <div>{format(values.startTime, DATE_FORMAT)}</div>
           </Box>
         )}
       </Grid>
@@ -579,16 +589,14 @@ const Record = ({
             <KeyboardTimePicker
               margin="dense"
               id="date-time-dialog"
-              label="Time Spent"
+              label="Start Time"
               format="HH:mm"
               ampm={false}
               autoOk
-              value={parse(values.timeString, "HH:mm", new Date())}
-              onChange={v =>
-                isValid(v) && setFieldValue("timeString", format(v, "HH:mm"))
-              }
-              error={!!errors["timeString"]}
-              helperText={errors["timeString"]}
+              value={values.startTime}
+              onChange={v => {console.log(`onChange old=%s  new=%s`, values.startTime,v);isValid(v) && setFieldValue("startTime", v)}}
+              error={!!errors["startTime"]}
+              helperText={errors["startTime"]}
               KeyboardButtonProps={{
                 "aria-label": "change time spent"
               }}
@@ -596,7 +604,7 @@ const Record = ({
           </MuiPickersUtilsProvider>
         ) : (
           <Box m={1}>
-            <div>{values.timeString}</div>
+            <div>{format(values.startTime, "HH:mm")}</div>
           </Box>
         )}
       </Grid>
@@ -606,7 +614,7 @@ const Record = ({
           editing={editing}
           name={"note"}
           value={values.note}
-          rovalue={row.note}
+          rovalue={"[" + row.id + "] " + (row.note || "")}
           onChange={handleChange}
           label="Note"
           errors={errors}
@@ -661,9 +669,7 @@ const EditableTextField = ({
 const AddTableRow = ({ onAdd, setAddRow, classes }) => (
   <Formik
     initialValues={{
-      id: TMP_ID,
-      date: format(new Date(), DATE_FORMAT),
-      timeString: "00:00",
+      startTime: new Date(),
       note: ""
     }}
     validate={validateRecord}
@@ -702,14 +708,12 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
               id="date-picker"
               label="Date"
               format={DATE_FORMAT}
-              value={parse(values.date, DATE_FORMAT, new Date())}
-              onChange={v =>
-                isValid(v) && setFieldValue("date", format(v, DATE_FORMAT))
-              }
-              error={!!errors.date}
-              helperText={errors.date}
+              value={values.startTime}
+              onChange={handleChange}
+              error={!!errors.startTime}
+              helperText={errors.startTime}
               KeyboardButtonProps={{
-                "aria-label": "change date"
+                "aria-label": "change start date"
               }}
             />
           </MuiPickersUtilsProvider>
@@ -720,18 +724,16 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
             <KeyboardTimePicker
               margin="dense"
               id="date-time-dialog"
-              label="Time Spent"
+              label="Start Time"
               format="HH:mm"
               ampm={false}
               autoOk
-              value={parse(values.timeString, "HH:mm", new Date())}
-              onChange={v =>
-                isValid(v) && setFieldValue("timeString", format(v, "HH:mm"))
-              }
-              error={!!errors["timeString"]}
-              helperText={errors["timeString"]}
+              value={values.startTime}
+              onChange={handleChange}
+              error={!!errors["startTime"]}
+              helperText={errors["startTime"]}
               KeyboardButtonProps={{
-                "aria-label": "change time spent"
+                "aria-label": "change start time"
               }}
             />
           </MuiPickersUtilsProvider>
@@ -807,20 +809,11 @@ const EditControls = ({
     </Grid>
   ) : null;
 
-/* Validation functions for formal correctness of date and timeString fields */
+/* Validation functions for formal correctness of date and startTime fields */
 const validateRecord = values => {
   const errors = {};
-  if (!values.date) {
-    errors.date = "Required";
-  } else if (!values.date.match(/[\d]{4}-[\d]{2}-[\d]{2}/)) {
-    errors.date = `Must be ${DATE_FORMAT.toUpperCase()}`;
-  } else if (!isValid(parse(values.date, DATE_FORMAT, new Date()))) {
-    errors.date = "Invalid Date";
-  }
-  if (!values.timeString) {
-    errors.timeString = "Required";
-  } else if (!values.timeString.match(/\d?\d:\d\d/)) {
-    errors.timeString = "Must be (H)H:MM";
+  if (!values.startTime) {
+    errors.startTime = "Required";
   }
 
   return errors;

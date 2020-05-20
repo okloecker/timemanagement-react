@@ -1,6 +1,5 @@
 import React from "react";
-import * as storage from "storage/storage";
-import { getCookie } from "helpers/cookies";
+import { setStorageItemJson } from "storage/storage";
 import axios from "axios";
 
 import clsx from "clsx";
@@ -58,7 +57,7 @@ const Login = props => {
   const [globalError, setGlobalError] = React.useState();
 
   const postLogin = ({ username, password }) =>
-    axios("/app/login", {
+    axios("/api/auth/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -92,34 +91,35 @@ const Login = props => {
               },
               {
                 onSuccess: response => {
+                  const rqData = response.data; // react-query object
                   setStatus({
-                    loginSuccessMessage: response.data.success.message
+                    loginSuccessMessage: rqData.message
                   });
-                  props.setAuthToken(getCookie("authToken"));
-                  const { message, ...rest } = response.data.success;
-                  storage.local.setItem("userInfo", JSON.stringify(rest));
+                  props.setAuthToken(rqData.data.authToken.token);
+                  setStorageItemJson("userInfo", rqData.data);
                   setGlobalError(null);
                 },
                 onError: error => {
-                  if (error.response.data) {
-                    if (error.response.data.username)
+                  const rqData = error.response.data; // react-query object
+                  if (rqData) {
+                    if (rqData.username)
                       setFieldError(
                         "username",
-                        error.response.data.username.join()
+                        rqData.username.join()
                       );
-                    if (error.response.data.password)
+                    if (rqData.password)
                       setFieldError(
                         "password",
-                        error.response.data.password.join()
+                        rqData.password.join()
                       );
-                    if (error.response.data.error) {
+                    if (rqData.error) {
                       setFieldError(
                         "username",
-                        error.response.data.error.message
+                        rqData.error.message
                       );
                       setFieldError(
                         "password",
-                        error.response.data.error.message
+                        rqData.error.message
                       );
                     }
                   }

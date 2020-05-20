@@ -1,6 +1,4 @@
 import React from "react";
-import * as storage from "storage/storage";
-import { getCookie } from "helpers/cookies";
 import axios from "axios";
 
 import clsx from "clsx";
@@ -51,28 +49,24 @@ const useStyles = makeStyles(theme => ({
  * Signup container.
  * Note that it is as of writing mostly identical to Login, but this will
  * change with a different signup/login workflow.
-*/
+ */
 const Signup = props => {
   const classes = useStyles();
-  const [isShowPassword, setShowPassword] = React.useState(false);
   const [globalError, setGlobalError] = React.useState();
 
-  const postSignup = ({ username, password }) =>
-    axios("/app/signup", {
+  const postSignup = ({ username, password, repeatPassword }) =>
+    axios("/api/auth/signup", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       data: {
         username,
-        password
+        password,
+        repeatPassword
       }
     });
   const [mutate] = useMutation(postSignup);
-
-  const handleClickShowPassword = () => {
-    setShowPassword(prevIsShowPassword => !isShowPassword);
-  };
 
   const handleMouseDownPassword = event => {
     event.preventDefault();
@@ -81,48 +75,45 @@ const Signup = props => {
   return (
     <div className={clsx(classes.form)}>
       <Formik
-        initialValues={{ username: "", password: "" }}
+        initialValues={{ username: "", password: "", repeatPassword: "", isShowPassword: false }}
         validate={logSignValidateFun}
         onSubmit={async (values, { setFieldError, setStatus }) => {
           try {
             await mutate(
               {
                 username: values.username,
-                password: values.password
+                password: values.password,
+                repeatPassword: values.isShowPassword
+                  ? values.password
+                  : values.repeatPassword
               },
               {
                 onSuccess: response => {
+                  const rqData = response.data; // react-query object
                   setStatus({
-                    signupSuccessMessage: response.data.success.message
+                    signupSuccessMessage: rqData.message
                   });
-                  props.setAuthToken(getCookie("authToken"));
-                  const { message, ...rest } = response.data.success;
-                  storage.local.setItem("userInfo", JSON.stringify(rest));
+                  // props.setAuthToken(rqData.data.authToken.token);
+                  // storage.local.setItem("userInfo", JSON.stringify(rqData.data));
                   setGlobalError(null);
                 },
                 onError: error => {
-                  if (error.response.data) {
-                    if (error.response.data.username)
+                  const rqData = error.response.data; // react-query object
+                  const validation = rqData.error.validation;
+                  if (validation) {
+                    validation.forEach(v => {
                       setFieldError(
-                        "username",
-                        error.response.data.username.join()
+                        v.key,
+                        v.message
                       );
-                    if (error.response.data.password)
-                      setFieldError(
-                        "password",
-                        error.response.data.password.join()
-                      );
-                    if (error.response.data.error) {
-                      setFieldError(
-                        "username",
-                        error.response.data.error.message
-                      );
-                      setFieldError(
-                        "password",
-                        error.response.data.error.message
-                      );
-                    }
+                    })
                   }
+                  if(rqData.error.code === "USER_EXISTS_ALREADY"){
+                    setFieldError("username", rqData.error.message);
+                  }
+                  setStatus({
+                    signupSuccessMessage: null
+                  });
                   if (error.response.statusText) {
                     setGlobalError({
                       message: `Signup failed with error: ${
@@ -146,6 +137,7 @@ const Signup = props => {
           handleChange,
           handleSubmit,
           handleBlur,
+          setFieldValue,
           isSubmitting
         }) => (
           <Container component="main" maxWidth="xs">
@@ -176,7 +168,7 @@ const Signup = props => {
                   fullWidth
                   name="password"
                   label="Password"
-                  type={isShowPassword ? "text" : "password"}
+                  type={values.isShowPassword ? "text" : "password"}
                   id="password"
                   autoComplete="current-password"
                   value={values.password}
@@ -190,15 +182,41 @@ const Signup = props => {
                       <InputAdornment position="end">
                         <IconButton
                           aria-label="toggle password visibility"
-                          onClick={handleClickShowPassword}
+                          onClick={_ =>
+                            setFieldValue(
+                              "isShowPassword",
+                              !values.isShowPassword
+                            )
+                          }
                           onMouseDown={handleMouseDownPassword}
                         >
-                          {isShowPassword ? <Visibility /> : <VisibilityOff />}
+                          {values.isShowPassword ? (
+                            <Visibility />
+                          ) : (
+                            <VisibilityOff />
+                          )}
                         </IconButton>
                       </InputAdornment>
                     )
                   }}
                 />
+                {values.isShowPassword || (
+                  <TextField
+                    margin="normal"
+                    required
+                    fullWidth
+                    name="repeatPassword"
+                    label="Repeat Password"
+                    type={"password"}
+                    id="repeatPassword"
+                    autoComplete="current-repeatPassword"
+                    value={values.repeatPassword}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={!!errors.repeatPassword && touched.repeatPassword}
+                    helperText={errors.repeatPassword}
+                  />
+                )}
                 <Button
                   type="submit"
                   fullWidth
