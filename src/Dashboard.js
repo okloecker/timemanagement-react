@@ -82,7 +82,7 @@ const Dashboard = props => {
     <Box m={2}>
       {/* add some margin to component */}
       <Grid container className={classes.root} justify="center">
-        <Grid item xs={12} md={11} lg={10}>
+        <Grid item xs={12} lg={11} xl={10}>
           <Paper className={classes.control} elevation={2}>
             <Formik
               initialValues={getInitialValues()}

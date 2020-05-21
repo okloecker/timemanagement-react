@@ -15,8 +15,7 @@ import { Add, Close, Delete, Done, Edit } from "@material-ui/icons";
 import { Alert, Pagination } from "@material-ui/lab";
 import {
   MuiPickersUtilsProvider,
-  KeyboardDatePicker,
-  KeyboardTimePicker
+  KeyboardDateTimePicker
 } from "@material-ui/pickers";
 import DateFnsUtils from "@date-io/date-fns";
 import axios from "axios";
@@ -30,12 +29,13 @@ import compareDesc from "date-fns/compareDesc";
 import { Formik } from "formik";
 import { queryCache, useMutation, useQuery } from "react-query";
 import { getStorageItemJson } from "storage/storage";
+import { minToHHMM } from "helpers/time";
 import EmptyState from "EmptyState";
 
 const PAGE_SIZE = 30;
 const DATE_FORMAT = "yyyy-MM-dd";
 
-const recordSortFunction = (a,b) => compareDesc(a.startTime, b.startTime)
+const recordSortFunction = (a, b) => compareDesc(a.startTime, b.startTime);
 
 const useStyles = makeStyles({
   root: { minWidth: 275 },
@@ -95,8 +95,13 @@ const fetchRecords = async (
 };
 
 const updateRecord = ({ row, user, authToken, method = "PUT" }) => {
-  let fragment = method === "POST" ? "" : `/${row.id}`;
-  const url = `/api/timerecords${fragment}`;
+  let url;
+  if (method === "UNDO_DELETE") {
+    url = `/api/timerecords/${row.id}/undelete`;
+    method = "PUT";
+  } else if (method === "POST") url = "/api/timerecords";
+  else url = `/api/timerecords/${row.id}`;
+
   return axios(url, {
     method, // "PUT" or "POST" or "DELETE"
     headers: { "Content-Type": "application/json", AuthToken: authToken },
@@ -188,8 +193,6 @@ const RecordsGrid = props => {
   const [mutate] = useMutation(updateRecord, {
     onMutate: ({ row: newRow, method }) => {
       const previousData = queryCache.getQueryData(recordsQueryKey);
-      console.log("newRow", { newRow });
-      console.log("previousData", { previousData });
       // optimistically change, add or delete in-memory records:
       switch (method) {
         case "PUT":
@@ -197,7 +200,6 @@ const RecordsGrid = props => {
             recordsQueryKey,
             previousData.map(r => (r.id === newRow.id ? newRow : r))
           );
-          setEditRow(null);
           break;
         case "POST":
           queryCache.setQueryData(
@@ -215,16 +217,25 @@ const RecordsGrid = props => {
             previousData.filter(r => r.id !== newRow.id)
           );
           break;
+        case "UNDO_DELETE":
+          setUndoRow(null);
+          queryCache.setQueryData(
+            recordsQueryKey,
+            previousData
+              .concat({ ...newRow })
+              .sort((a, b) => compareDesc(a.startTime, b.startTime))
+          );
+          break;
         default:
           console.log("Unknown method", method);
       }
+      setEditRow(null);
       setGlobalError(null);
       return () => queryCache.setQueryData(recordsQueryKey, previousData); // the rollback function
     },
     onError: (err, { row, method }, rollback) => {
       const rqData = err.response.data; // react-query object
-      const validation = rqData.error.validation;
-      let reasons = validation;
+      const reasons = rqData.error.validation;
       rollback(); // revert to previous records
       switch (method) {
         case "PUT":
@@ -240,6 +251,9 @@ const RecordsGrid = props => {
         case "DELETE":
           // nothing else to do here
           break;
+        case "UNDO_DELETE":
+          // nothing else to do here
+          break;
         default:
           console.log("Unknown method", method);
       }
@@ -250,20 +264,21 @@ const RecordsGrid = props => {
     },
     onSuccess: ({ data: rqData }) => {
       // update current cached data with latest from server
-      console.log('rqData', {rqData});
       const previousData = queryCache.getQueryData(recordsQueryKey);
       queryCache.setQueryData(
         recordsQueryKey,
-        previousData.map(r => {
-          return r.tmpId && rqData.data.tmpId === r.tmpId
-            ? imm
-                .wrap(rqData.data)
-                .del("tmpId")
-                .set("startTime", parseISO(rqData.data.startTime))
-                .value()
-            : r
-        }
-        ).sort(recordSortFunction)
+        previousData
+          .map(r => {
+            return (r.tmpId && rqData.data.tmpId === r.tmpId) || (r.id === rqData.data.id)
+              ? imm
+                  .wrap(rqData.data)
+                  .del("tmpId")
+                  .set("startTime", parseISO(rqData.data.startTime))
+                  .set("endTime", parseISO(rqData.data.endTime))
+                  .value()
+              : r;
+          })
+          .sort(recordSortFunction)
       );
     }
   });
@@ -293,6 +308,14 @@ const RecordsGrid = props => {
     });
   };
 
+  const handleRecordUndelete = async row => {
+    await mutate({
+      row,
+      method: "UNDO_DELETE",
+      authToken
+    });
+  };
+
   /* User clicked delete on record */
   const handleRecordDelete = async record => {
     await mutate({
@@ -305,7 +328,7 @@ const RecordsGrid = props => {
   /* User clicked "undo" after delete */
   const handleUndoDelete = async row => {
     if (undoRow) {
-      await handleRecordAdd(undoRow);
+      await handleRecordUndelete(undoRow);
       setUndoRow(null);
     }
     setSnackMessage(null);
@@ -336,8 +359,8 @@ const RecordsGrid = props => {
       {/* Empty state: no records found either because filter criteria are too
         strict or there are simply no records for user. 
         */}
-      {!data ||
-        (!data.length && (
+      {(!data ||
+        !data.length) && (
           <EmptyState
             classes={classes}
             handleAddRecord={handleAddRecord}
@@ -345,7 +368,7 @@ const RecordsGrid = props => {
             setAddRow={setAddRow}
             handleRecordAdd={handleRecordAdd}
           />
-        ))}
+        )}
 
       {/* Loading state */}
       {status === "loading" && (
@@ -360,7 +383,7 @@ const RecordsGrid = props => {
           {globalError.message}
           <ul>
             {globalError.reasons.map(r => (
-              <li key={r}>{r}</li>
+              <li key={r.key}>{r.message}</li>
             ))}
           </ul>
         </Alert>
@@ -465,7 +488,10 @@ const RecordsGrid = props => {
               aria-label="close"
               color="inherit"
               className={classes.close}
-              onClick={_ => setUndoRow(null)}
+              onClick={_ => {
+                setUndoRow(null);
+                setSnackMessage(null);
+              }}
             >
               <Close />
             </IconButton>
@@ -492,8 +518,11 @@ const EditableTableRow = ({
     <Formik
       initialValues={{
         startTime: row.startTime,
+        endTime: row.endTime,
+        durationMinutes: row.durationMinutes,
         note: row.note
       }}
+      enableReinitialize={true}
       validate={validateRecord}
       onSubmit={(values, actions) => onUpdate(values)}
       onReset={(values, actions) => setEditing(null)}
@@ -559,67 +588,85 @@ const Record = ({
         handleRecordDelete={handleRecordDelete}
       />
       {/* Date field */}
-      <Grid item xs={12} md={2}>
+      <Grid item xs={12} sm={editing ? 6 : 5} md={editing ? 3 : 2} lg={editing ? 3 : 2} xl={editing ? 2 : 2}>
         {editing ? (
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
-            <KeyboardDatePicker
+            <KeyboardDateTimePicker
               margin="dense"
-              id="date-picker"
-              label="Date"
-              format={DATE_FORMAT}
+              id="start-date-time-picker"
+              label="Start Time"
+              format={"yyyy-MM-dd HH:mm"}
+              ampm={false}
+              autoOk
+              showTodayButton
               value={values.startTime}
-              onChange={v => isValid(v) && setFieldValue("startTime", v)}
+              onChange={v => {
+                isValid(v) && setFieldValue("startTime", v);
+              }}
               error={!!errors.startTime}
               helperText={errors.startTime}
               KeyboardButtonProps={{
-                "aria-label": "change start time"
+                "aria-label": "change start date"
               }}
             />
           </MuiPickersUtilsProvider>
         ) : (
           <Box m={1}>
-            <div>{format(values.startTime, DATE_FORMAT)}</div>
+            <div>{format(values.startTime, "yyyy-MM-dd HH:mm")}</div>
           </Box>
         )}
       </Grid>
-      {/* Time field */}
-      <Grid item xs={12} md={editing ? 2 : 1}>
+      <Grid item xs={12} sm={editing ? 6 : 5} md={editing ? 3 : 1} lg={editing ? 3 : 1} xl={editing ? 2 : 2}>
         {editing ? (
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
-            <KeyboardTimePicker
+            <KeyboardDateTimePicker
               margin="dense"
-              id="date-time-dialog"
-              label="Start Time"
-              format="HH:mm"
+              id="end-date-time-picker"
+              label="End Time"
+              format={"yyyy-MM-dd HH:mm"}
               ampm={false}
               autoOk
-              value={values.startTime}
-              onChange={v => {console.log(`onChange old=%s  new=%s`, values.startTime,v);isValid(v) && setFieldValue("startTime", v)}}
-              error={!!errors["startTime"]}
-              helperText={errors["startTime"]}
+              showTodayButton
+              value={values.endTime}
+              onChange={v => {
+                isValid(v) && setFieldValue("endTime", v);
+              }}
+              error={!!errors.endTime}
+              helperText={errors.endTime}
               KeyboardButtonProps={{
-                "aria-label": "change time spent"
+                "aria-label": "change end date"
               }}
             />
           </MuiPickersUtilsProvider>
         ) : (
           <Box m={1}>
-            <div>{format(values.startTime, "HH:mm")}</div>
+            <div>{values.endTime ? isValid(values.endTime) ? format(values.endTime, "HH:mm"):"-": null}</div>
           </Box>
         )}
       </Grid>
+
+      {/* duration field */}
+      {editing ||
+        <Grid item xs={12} sm={2} md={1}>
+          <Box m={1}>
+            {minToHHMM(values.durationMinutes, "--")}
+          </Box>
+        </Grid>
+      }
+
       {/* Note field */}
-      <Grid item xs={12} md={editing ? 6 : 7}>
+      <Grid item xs={12} sm={12} md={editing ? 5 : 7} lg={editing ? 5 : 7} xl={editing ? 6 : 6}>
         <EditableTextField
           editing={editing}
           name={"note"}
           value={values.note}
-          rovalue={"[" + row.id + "] " + (row.note || "")}
+          rovalue={row.note || ""}
           onChange={handleChange}
           label="Note"
           errors={errors}
         />
       </Grid>
+
       {/* Edit/Cancel icons */}
       <EditControls
         editing={editing}
@@ -703,13 +750,19 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
         {/* Date field */}
         <Grid item xs={12} md={2}>
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
-            <KeyboardDatePicker
+            <KeyboardDateTimePicker
               margin="dense"
-              id="date-picker"
-              label="Date"
-              format={DATE_FORMAT}
+              id="start-date-time-picker"
+              label="Start Time"
+              format={"yyyy-MM-dd HH:mm"}
+              ampm={false}
+              autoOk
+              showTodayButton
               value={values.startTime}
-              onChange={handleChange}
+              onChange={v => {
+                console.log(`onChange old=%s  new=%s`, values.startTime, v);
+                isValid(v) && setFieldValue("startTime", v);
+              }}
               error={!!errors.startTime}
               helperText={errors.startTime}
               KeyboardButtonProps={{
@@ -718,22 +771,25 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
             />
           </MuiPickersUtilsProvider>
         </Grid>
-        {/* Time field */}
         <Grid item xs={12} md={2}>
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
-            <KeyboardTimePicker
+            <KeyboardDateTimePicker
               margin="dense"
-              id="date-time-dialog"
-              label="Start Time"
-              format="HH:mm"
+              id="end-date-time-picker"
+              label="End Time"
+              format={"yyyy-MM-dd HH:mm"}
               ampm={false}
               autoOk
-              value={values.startTime}
-              onChange={handleChange}
-              error={!!errors["startTime"]}
-              helperText={errors["startTime"]}
+              showTodayButton
+              value={values.endTime}
+              onChange={v => {
+                console.log(`onChange old=%s  new=%s`, values.endTime, v);
+                isValid(v) && setFieldValue("endTime", v);
+              }}
+              error={!!errors.endTime}
+              helperText={errors.endTime}
               KeyboardButtonProps={{
-                "aria-label": "change start time"
+                "aria-label": "change end date"
               }}
             />
           </MuiPickersUtilsProvider>

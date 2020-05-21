@@ -33,7 +33,7 @@ function App() {
     try {
       await mutate(null, {
         onSuccess: response => {
-          setLogoutResult({ ok: true, message: response.data.success.message });
+          setLogoutResult({ ok: true, message: response.data.message });
           setAuthToken(null);
           removeStorageItem("userInfo");
         },
