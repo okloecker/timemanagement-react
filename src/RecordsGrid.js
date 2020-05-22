@@ -22,10 +22,12 @@ import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import * as imm from "object-path-immutable";
 import format from "date-fns/format";
+import formatISO from "date-fns/formatISO";
 import isDate from "date-fns/isDate";
 import isValid from "date-fns/isValid";
 import parseISO from "date-fns/parseISO";
 import compareDesc from "date-fns/compareDesc";
+import isAfter from "date-fns/isAfter";
 import { Formik } from "formik";
 import { queryCache, useMutation, useQuery } from "react-query";
 import { getStorageItemJson } from "storage/storage";
@@ -33,7 +35,7 @@ import { minToHHMM } from "helpers/time";
 import EmptyState from "EmptyState";
 
 const PAGE_SIZE = 30;
-const DATE_FORMAT = "yyyy-MM-dd";
+const DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm";
 
 const recordSortFunction = (a, b) => compareDesc(a.startTime, b.startTime);
 
@@ -52,17 +54,15 @@ const fetchRecords = async (
   { startDate, endDate, contains, authToken }
 ) => {
   try {
-    const from = format(
-      isDate(startDate) ? startDate : parseISO(startDate),
-      DATE_FORMAT
-    );
-    const to = format(
-      isDate(endDate) ? endDate : parseISO(endDate),
-      DATE_FORMAT
-    );
+    const from = formatISO(isDate(startDate) ? startDate : parseISO(startDate));
+    const to = formatISO(isDate(endDate) ? endDate : parseISO(endDate));
+    // must encode dateFrom/dateTo, otherwise the "+" before the timezone
+    // offset will be interpreted as a space
     const result = await axios(
-      `/api/timerecords?dateFrom=${from}&dateTo=${to}${
-        contains ? "&contains=" + contains : ""
+      `/api/timerecords?dateFrom=${encodeURIComponent(
+        from
+      )}&dateTo=${encodeURIComponent(to)}${
+        contains ? "&contains=" + encodeURIComponent(contains) : ""
       }`,
       {
         headers: {
@@ -235,7 +235,13 @@ const RecordsGrid = props => {
     },
     onError: (err, { row, method }, rollback) => {
       const rqData = err.response.data; // react-query object
-      const reasons = rqData.error.validation;
+      let reasons = [];
+      if (rqData.error.message) {
+        // general error:
+        reasons.push({ key: "Update failed", message: rqData.error.message });
+      }
+      // validation error:
+      if (rqData.error.validation) reasons = reasons.concat(rqData.error.validation);
       rollback(); // revert to previous records
       switch (method) {
         case "PUT":
@@ -269,7 +275,8 @@ const RecordsGrid = props => {
         recordsQueryKey,
         previousData
           .map(r => {
-            return (r.tmpId && rqData.data.tmpId === r.tmpId) || (r.id === rqData.data.id)
+            return (r.tmpId && rqData.data.tmpId === r.tmpId) ||
+              r.id === rqData.data.id
               ? imm
                   .wrap(rqData.data)
                   .del("tmpId")
@@ -359,16 +366,15 @@ const RecordsGrid = props => {
       {/* Empty state: no records found either because filter criteria are too
         strict or there are simply no records for user. 
         */}
-      {(!data ||
-        !data.length) && (
-          <EmptyState
-            classes={classes}
-            handleAddRecord={handleAddRecord}
-            addRow={addRow}
-            setAddRow={setAddRow}
-            handleRecordAdd={handleRecordAdd}
-          />
-        )}
+      {(!data || !data.length) && (
+        <EmptyState
+          classes={classes}
+          handleAddRecord={handleAddRecord}
+          addRow={addRow}
+          setAddRow={setAddRow}
+          handleRecordAdd={handleRecordAdd}
+        />
+      )}
 
       {/* Loading state */}
       {status === "loading" && (
@@ -588,14 +594,21 @@ const Record = ({
         handleRecordDelete={handleRecordDelete}
       />
       {/* Date field */}
-      <Grid item xs={12} sm={editing ? 6 : 5} md={editing ? 3 : 2} lg={editing ? 3 : 2} xl={editing ? 2 : 2}>
+      <Grid
+        item
+        xs={12}
+        sm={editing ? 6 : 5}
+        md={editing ? 3 : 2}
+        lg={editing ? 3 : 2}
+        xl={editing ? 2 : 2}
+      >
         {editing ? (
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
             <KeyboardDateTimePicker
               margin="dense"
               id="start-date-time-picker"
               label="Start Time"
-              format={"yyyy-MM-dd HH:mm"}
+              format={DATE_TIME_FORMAT}
               ampm={false}
               autoOk
               showTodayButton
@@ -612,18 +625,25 @@ const Record = ({
           </MuiPickersUtilsProvider>
         ) : (
           <Box m={1}>
-            <div>{format(values.startTime, "yyyy-MM-dd HH:mm")}</div>
+            <div>{format(values.startTime, DATE_TIME_FORMAT)}</div>
           </Box>
         )}
       </Grid>
-      <Grid item xs={12} sm={editing ? 6 : 5} md={editing ? 3 : 1} lg={editing ? 3 : 1} xl={editing ? 2 : 2}>
+      <Grid
+        item
+        xs={12}
+        sm={editing ? 6 : 5}
+        md={editing ? 3 : 1}
+        lg={editing ? 3 : 1}
+        xl={editing ? 2 : 2}
+      >
         {editing ? (
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
             <KeyboardDateTimePicker
               margin="dense"
               id="end-date-time-picker"
               label="End Time"
-              format={"yyyy-MM-dd HH:mm"}
+              format={DATE_TIME_FORMAT}
               ampm={false}
               autoOk
               showTodayButton
@@ -640,22 +660,33 @@ const Record = ({
           </MuiPickersUtilsProvider>
         ) : (
           <Box m={1}>
-            <div>{values.endTime ? isValid(values.endTime) ? format(values.endTime, "HH:mm"):"-": null}</div>
+            <div>
+              {values.endTime
+                ? isValid(values.endTime)
+                  ? format(values.endTime, "HH:mm")
+                  : "—"
+                : null}
+            </div>
           </Box>
         )}
       </Grid>
 
       {/* duration field */}
-      {editing ||
+      {editing || (
         <Grid item xs={12} sm={2} md={1}>
-          <Box m={1}>
-            {minToHHMM(values.durationMinutes, "--")}
-          </Box>
+          <Box m={1}>Δ={minToHHMM(values.durationMinutes, "—")}</Box>
         </Grid>
-      }
+      )}
 
       {/* Note field */}
-      <Grid item xs={12} sm={12} md={editing ? 5 : 7} lg={editing ? 5 : 7} xl={editing ? 6 : 6}>
+      <Grid
+        item
+        xs={12}
+        sm={12}
+        md={editing ? 5 : 7}
+        lg={editing ? 5 : 7}
+        xl={editing ? 6 : 6}
+      >
         <EditableTextField
           editing={editing}
           name={"note"}
@@ -754,7 +785,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
               margin="dense"
               id="start-date-time-picker"
               label="Start Time"
-              format={"yyyy-MM-dd HH:mm"}
+              format={DATE_TIME_FORMAT}
               ampm={false}
               autoOk
               showTodayButton
@@ -777,7 +808,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
               margin="dense"
               id="end-date-time-picker"
               label="End Time"
-              format={"yyyy-MM-dd HH:mm"}
+              format={DATE_TIME_FORMAT}
               ampm={false}
               autoOk
               showTodayButton
@@ -870,6 +901,16 @@ const validateRecord = values => {
   const errors = {};
   if (!values.startTime) {
     errors.startTime = "Required";
+  } else if (!isValid(values.startTime)) {
+    errors.startTime = "Invalid Start Time";
+  }
+
+  if (values.endTime && !isValid(values.startTime)) {
+    errors.endTime = "Invalid End Time";
+  }
+
+  if (values.startTime && values.endTime && !isAfter(values.endTime, values.startTime)) {
+    errors.endTime = "End Time must be after Start Time";
   }
 
   return errors;
