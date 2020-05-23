@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Box,
+  Divider,
   Button,
   Fab,
   IconButton,
@@ -34,11 +35,9 @@ const recordSortFunction = (a, b) => compareDesc(a.startTime, b.startTime);
 const useStyles = makeStyles({
   root: { minWidth: 275 },
   title: { fontSize: 20, textAlign: "center" },
-  editCell: { backgroundColor: "#ffffe4", paddingTop: "8px" },
   controls: { paddingTop: "16px", paddingBottom: "16px" },
   pagination: { display: "inline-block" },
-  fab: { paddingLeft: "8px" },
-  duration: { fontStyle: "italic" }
+  fab: { paddingLeft: "8px" }
 });
 
 /* Async backend call to fetch data */
@@ -361,6 +360,8 @@ const RecordsGrid = props => {
   const firstIdx = Math.max(0, page - 1) * PAGE_SIZE;
   const lastIdx = page * PAGE_SIZE;
   const pageData = Array.isArray(data) ? data.slice(firstIdx, lastIdx) : [];
+  console.log("pageData", { pageData });
+  console.log("show", data && data.length, PAGE_SIZE);
 
   return (
     <Box mt={2}>
@@ -406,7 +407,7 @@ const RecordsGrid = props => {
         */}
       {!!pageData.length && (
         <div className={classes.controls}>
-          {pageData.length > PAGE_SIZE && (
+          {data.length > PAGE_SIZE && (
             <>
               <span className={classes.pagination}>
                 <Pagination
@@ -476,13 +477,20 @@ const RecordsGrid = props => {
         })}
 
       {/* Additional paging controls at bottom of page */}
-      {pageData.length > PAGE_SIZE && (
-        <Pagination
-          count={Math.ceil(data.length / PAGE_SIZE)}
-          showFirstButton
-          showLastButton
-          onChange={(e, p) => setPage(p)}
-        />
+      {!!pageData.length && data.length > PAGE_SIZE && (
+        <>
+          <Box mt={1}>
+            <Divider variant="fullWidth" />
+          </Box>
+          <Box mt={2}>
+            <Pagination
+              count={Math.ceil(data.length / PAGE_SIZE)}
+              showFirstButton
+              showLastButton
+              onChange={(e, p) => setPage(p)}
+            />
+          </Box>
+        </>
       )}
 
       {/* Snacks to show after delete with undo button */}
