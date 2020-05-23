@@ -80,7 +80,7 @@ const fetchRecords = async (
       return result.data.data
         .map(d => ({
           ...d,
-          startTime: parseISO(d.startTime),
+          startTime: parseISO(d.startTime), // DateTimePicker expects Date object
           endTime: isValid(parseISO(d.endTime)) ? parseISO(d.endTime) : null
         }))
         .sort(recordSortFunction);
@@ -282,7 +282,11 @@ const RecordsGrid = props => {
               ? imm
                   .wrap(rqData.data)
                   .del("tmpId")
-                  .set("startTime", parseISO(rqData.data.startTime))
+                  .set(
+                    "startTime",
+                    // DateTimePicker expects Date object
+                    parseISO(rqData.data.startTime)
+                  )
                   .set(
                     "endTime",
                     rqData.data.endTime ? parseISO(rqData.data.endTime) : null
@@ -675,7 +679,9 @@ const Record = ({
       {/* duration field */}
       {editing || (
         <Grid item xs={12} sm={2} md={1}>
-          <Box m={1} className={classes.duration}>{minToHHMM(values.durationMinutes, "—")}</Box>
+          <Box m={1} className={classes.duration}>
+            {minToHHMM(values.durationMinutes, "—")}
+          </Box>
         </Grid>
       )}
 
@@ -781,7 +787,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
           </IconButton>
         </Grid>
         {/* Date field */}
-        <Grid item xs={12} sm={6} md={3} lg={3} xl={2} >
+        <Grid item xs={12} sm={6} md={3} lg={3} xl={2}>
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
             <KeyboardDateTimePicker
               margin="dense"
@@ -801,7 +807,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
             />
           </MuiPickersUtilsProvider>
         </Grid>
-        <Grid item xs={12} sm={6} md={3} lg={3} xl={2} >
+        <Grid item xs={12} sm={6} md={3} lg={3} xl={2}>
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
             <KeyboardDateTimePicker
               margin="dense"
@@ -822,7 +828,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
           </MuiPickersUtilsProvider>
         </Grid>
         {/* Note field */}
-        <Grid item xs={12} sm={12} md={5} lg={5} xl={6} >
+        <Grid item xs={12} sm={12} md={5} lg={5} xl={6}>
           <EditableTextField
             editing={true}
             name={"note"}
