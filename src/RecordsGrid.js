@@ -45,7 +45,8 @@ const useStyles = makeStyles({
   editCell: { backgroundColor: "#ffffe4", paddingTop: "8px" },
   controls: { paddingTop: "16px", paddingBottom: "16px" },
   pagination: { display: "inline-block" },
-  fab: { paddingLeft: "8px" }
+  fab: { paddingLeft: "8px" },
+  duration: { fontStyle: "italic" }
 });
 
 /* Async backend call to fetch data */
@@ -674,7 +675,7 @@ const Record = ({
       {/* duration field */}
       {editing || (
         <Grid item xs={12} sm={2} md={1}>
-          <Box m={1}>Δ={minToHHMM(values.durationMinutes, "—")}</Box>
+          <Box m={1} className={classes.duration}>{minToHHMM(values.durationMinutes, "—")}</Box>
         </Grid>
       )}
 
