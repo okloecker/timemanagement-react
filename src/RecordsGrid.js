@@ -25,9 +25,9 @@ import format from "date-fns/format";
 import formatISO from "date-fns/formatISO";
 import isDate from "date-fns/isDate";
 import isValid from "date-fns/isValid";
+import differenceInMinutes from "date-fns/differenceInMinutes";
 import parseISO from "date-fns/parseISO";
 import compareDesc from "date-fns/compareDesc";
-import isAfter from "date-fns/isAfter";
 import { Formik } from "formik";
 import { queryCache, useMutation, useQuery } from "react-query";
 import { getStorageItemJson } from "storage/storage";
@@ -80,7 +80,7 @@ const fetchRecords = async (
         .map(d => ({
           ...d,
           startTime: parseISO(d.startTime),
-          endTime: parseISO(d.endTime)
+          endTime: isValid(parseISO(d.endTime)) ? parseISO(d.endTime) : null
         }))
         .sort(recordSortFunction);
   } catch (err) {
@@ -241,7 +241,8 @@ const RecordsGrid = props => {
         reasons.push({ key: "Update failed", message: rqData.error.message });
       }
       // validation error:
-      if (rqData.error.validation) reasons = reasons.concat(rqData.error.validation);
+      if (rqData.error.validation)
+        reasons = reasons.concat(rqData.error.validation);
       rollback(); // revert to previous records
       switch (method) {
         case "PUT":
@@ -281,7 +282,10 @@ const RecordsGrid = props => {
                   .wrap(rqData.data)
                   .del("tmpId")
                   .set("startTime", parseISO(rqData.data.startTime))
-                  .set("endTime", parseISO(rqData.data.endTime))
+                  .set(
+                    "endTime",
+                    rqData.data.endTime ? parseISO(rqData.data.endTime) : null
+                  )
                   .value()
               : r;
           })
@@ -613,9 +617,7 @@ const Record = ({
               autoOk
               showTodayButton
               value={values.startTime}
-              onChange={v => {
-                isValid(v) && setFieldValue("startTime", v);
-              }}
+              onChange={v => setFieldValue("startTime", v)}
               error={!!errors.startTime}
               helperText={errors.startTime}
               KeyboardButtonProps={{
@@ -648,9 +650,7 @@ const Record = ({
               autoOk
               showTodayButton
               value={values.endTime}
-              onChange={v => {
-                isValid(v) && setFieldValue("endTime", v);
-              }}
+              onChange={v => setFieldValue("endTime", v)}
               error={!!errors.endTime}
               helperText={errors.endTime}
               KeyboardButtonProps={{
@@ -748,6 +748,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
   <Formik
     initialValues={{
       startTime: new Date(),
+      endTime: null,
       note: ""
     }}
     validate={validateRecord}
@@ -790,10 +791,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
               autoOk
               showTodayButton
               value={values.startTime}
-              onChange={v => {
-                console.log(`onChange old=%s  new=%s`, values.startTime, v);
-                isValid(v) && setFieldValue("startTime", v);
-              }}
+              onChange={v => setFieldValue("startTime", v)}
               error={!!errors.startTime}
               helperText={errors.startTime}
               KeyboardButtonProps={{
@@ -813,10 +811,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
               autoOk
               showTodayButton
               value={values.endTime}
-              onChange={v => {
-                console.log(`onChange old=%s  new=%s`, values.endTime, v);
-                isValid(v) && setFieldValue("endTime", v);
-              }}
+              onChange={v => setFieldValue("endTime", v)}
               error={!!errors.endTime}
               helperText={errors.endTime}
               KeyboardButtonProps={{
@@ -905,11 +900,14 @@ const validateRecord = values => {
     errors.startTime = "Invalid Start Time";
   }
 
-  if (values.endTime && !isValid(values.startTime)) {
-    errors.endTime = "Invalid End Time";
-  }
+  if (values.endTime !== null && !isValid(values.endTime))
+    errors.endTime = "Invalid Date";
 
-  if (values.startTime && values.endTime && !isAfter(values.endTime, values.startTime)) {
+  if (
+    values.startTime &&
+    values.endTime &&
+    differenceInMinutes(values.endTime, values.startTime) < 0
+  ) {
     errors.endTime = "End Time must be after Start Time";
   }
 
