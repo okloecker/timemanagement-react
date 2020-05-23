@@ -23,7 +23,7 @@ import {
   MuiPickersUtilsProvider,
   KeyboardDatePicker
 } from "@material-ui/pickers";
-import RecordsGrid from "RecordsGrid";
+import RecordsGrid from "records/RecordsGrid";
 
 const DEBOUNCE_TIMEOUT_MS = 500;
 
