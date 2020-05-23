@@ -781,7 +781,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
           </IconButton>
         </Grid>
         {/* Date field */}
-        <Grid item xs={12} md={2}>
+        <Grid item xs={12} sm={6} md={3} lg={3} xl={2} >
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
             <KeyboardDateTimePicker
               margin="dense"
@@ -801,7 +801,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
             />
           </MuiPickersUtilsProvider>
         </Grid>
-        <Grid item xs={12} md={2}>
+        <Grid item xs={12} sm={6} md={3} lg={3} xl={2} >
           <MuiPickersUtilsProvider utils={DateFnsUtils}>
             <KeyboardDateTimePicker
               margin="dense"
@@ -822,7 +822,7 @@ const AddTableRow = ({ onAdd, setAddRow, classes }) => (
           </MuiPickersUtilsProvider>
         </Grid>
         {/* Note field */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} sm={12} md={5} lg={5} xl={6} >
           <EditableTextField
             editing={true}
             name={"note"}
