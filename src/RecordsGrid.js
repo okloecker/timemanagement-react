@@ -28,6 +28,7 @@ import isValid from "date-fns/isValid";
 import differenceInMinutes from "date-fns/differenceInMinutes";
 import parseISO from "date-fns/parseISO";
 import compareDesc from "date-fns/compareDesc";
+import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import { Formik } from "formik";
 import { queryCache, useMutation, useQuery } from "react-query";
 import { getStorageItemJson } from "storage/storage";
@@ -459,9 +460,15 @@ const RecordsGrid = props => {
               setEditing={setEditRow}
               handleRecordDelete={handleRecordDelete}
               onUpdate={v => {
-                if (v !== row.date) handleRowUpdate({ row, newRow: v });
+                if (v !== row.startTime) handleRowUpdate({ row, newRow: v });
               }}
-              newDay={i === 0 || row.date !== arr[Math.max(0, i - 1)].date}
+              newDay={
+                i === 0 ||
+                !!differenceInCalendarDays(
+                  row.startTime,
+                  arr[Math.max(0, i - 1)].startTime
+                )
+              }
               classes={classes}
             />
           );
