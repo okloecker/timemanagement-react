@@ -268,11 +268,15 @@ const RecordsGrid = props => {
         recordsQueryKey,
         previousData
           .map(r => {
-            return (r.tmpId && rqData.data.tmpId === r.tmpId) ||
-              r.id === rqData.data.id
+            // if a temporary ID was sent, server returns source-of-truth id and temp id in this format:
+            // "<dbId>_<tmpId>"
+            // dbid will be at least first part of id even if no "_" present
+            const [dbId, tmpId] = rqData.data.id.split("_");
+            console.log(`dbId:${dbId}  tmpId=${tmpId}`);
+            return r.id === tmpId || r.id === dbId
               ? imm
                   .wrap(rqData.data)
-                  .del("tmpId")
+                  .set("id", dbId) // replace temporary ID
                   .set(
                     "startTime",
                     // DateTimePicker expects Date object
@@ -309,7 +313,7 @@ const RecordsGrid = props => {
   /* Post new record to backend */
   const handleRecordAdd = async record => {
     await mutate({
-      row: { ...record, userId, tmpId: uuidv4() },
+      row: { ...record, userId, id: uuidv4() },
       method: "POST",
       authToken
     });
@@ -360,8 +364,6 @@ const RecordsGrid = props => {
   const firstIdx = Math.max(0, page - 1) * PAGE_SIZE;
   const lastIdx = page * PAGE_SIZE;
   const pageData = Array.isArray(data) ? data.slice(firstIdx, lastIdx) : [];
-  console.log("pageData", { pageData });
-  console.log("show", data && data.length, PAGE_SIZE);
 
   return (
     <Box mt={2}>
@@ -446,7 +448,7 @@ const RecordsGrid = props => {
         pageData.map((row, i, arr) => {
           return row.id !== editRow ? (
             <ReadonlyRecord
-              key={row.id || row.tmpId /*assigned during optimistic update*/}
+              key={row.id /*might be assigned during optimistic update*/}
               startTime={row.startTime}
               endTime={row.endTime}
               durationMinutes={row.durationMinutes}
@@ -464,7 +466,7 @@ const RecordsGrid = props => {
             />
           ) : (
             <EditableRecord
-              key={row.id || row.tmpId /*assigned during optimistic update*/}
+              key={row.id /*might be assigned during optimistic update*/}
               row={row}
               setEditing={setEditRow}
               handleRecordDelete={handleRecordDelete}
