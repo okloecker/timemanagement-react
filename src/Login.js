@@ -92,12 +92,11 @@ const Login = props => {
               {
                 onSuccess: response => {
                   const rqData = response.data; // react-query object
+                  setStorageItemJson("userInfo", rqData.data);
                   setStatus({
                     loginSuccessMessage: rqData.message
                   });
                   props.setAuthToken(rqData.data.authToken.token);
-                  setStorageItemJson("userInfo", rqData.data);
-                  setGlobalError(null);
                 },
                 onError: error => {
                   const rqData = error.response.data; // react-query object
