@@ -163,6 +163,10 @@ const RecordsGrid = props => {
     [undoRow]
   );
 
+  React.useEffect(() => {
+    setPage(1)
+  }, [props.startDate, props.endDate, props.searchText]);
+
   const recordsQueryKey = [
     "records",
     {
