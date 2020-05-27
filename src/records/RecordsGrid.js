@@ -36,6 +36,7 @@ const useStyles = makeStyles({
   root: { minWidth: 275 },
   title: { fontSize: 20, textAlign: "center" },
   controls: { paddingTop: "16px", paddingBottom: "16px" },
+  activeRecord: { backgroundColor: "#e9ffe9" },
   pagination: { display: "inline-block" },
   fab: { paddingLeft: "8px" }
 });
@@ -67,7 +68,7 @@ const fetchRecords = async (
       return {
         error: { status: result.status, statusText: result.statusText }
       };
-    } else
+    } else {
       return result.data.data
         .map(d => ({
           ...d,
@@ -75,6 +76,7 @@ const fetchRecords = async (
           endTime: isValid(parseISO(d.endTime)) ? parseISO(d.endTime) : null
         }))
         .sort(recordSortFunction);
+    }
   } catch (err) {
     console.log("ERROR:", err);
     return {
@@ -163,9 +165,12 @@ const RecordsGrid = props => {
     [undoRow]
   );
 
-  React.useEffect(() => {
-    setPage(1)
-  }, [props.startDate, props.endDate, props.searchText]);
+  React.useEffect(
+    () => {
+      setPage(1);
+    },
+    [props.startDate, props.endDate, props.searchText]
+  );
 
   const recordsQueryKey = [
     "records",
@@ -178,11 +183,23 @@ const RecordsGrid = props => {
   ];
 
   /* Filtered query to fetch data */
-  const { status, data, error } = useQuery(
-    recordsQueryKey,
-    fetchRecords,
-    { staleTime: 10 * 1000 } // milliseconds
-  );
+  const { status, data, error } = useQuery(recordsQueryKey, fetchRecords, {
+    staleTime: 10 * 1000, // milliseconds
+    onSuccess: data => {
+      const recordsWithoutEndTime = data.filter(d => !d.endTime);
+      if (recordsWithoutEndTime.length > 1)
+        setGlobalError({
+          message: "Warning",
+          reasons: [
+            {
+              key: "Inconsistency",
+              message:
+                "There are multiple active records without end time, there should be only one!"
+            }
+          ]
+        });
+    }
+  });
 
   // Update record with new data, optimistically showing new data in table, but
   // rolling back on error
@@ -450,23 +467,27 @@ const RecordsGrid = props => {
       {!!pageData.length &&
         pageData.map((row, i, arr) => {
           return row.id !== editRow ? (
-            <ReadonlyRecord
+            <div
               key={row.id /*might be assigned during optimistic update*/}
-              startTime={row.startTime}
-              endTime={row.endTime}
-              durationMinutes={row.durationMinutes}
-              note={row.note}
-              id={row.id}
-              setEditing={setEditRow}
-              newDay={
-                i === 0 ||
-                !!differenceInCalendarDays(
-                  row.startTime,
-                  arr[Math.max(0, i - 1)].startTime
-                )
-              }
-              dateTimeFormat={DATE_TIME_FORMAT}
-            />
+              className={row.endTime ? "" : classes.activeRecord}
+            >
+              <ReadonlyRecord
+                startTime={row.startTime}
+                endTime={row.endTime}
+                durationMinutes={row.durationMinutes}
+                note={row.note}
+                id={row.id}
+                setEditing={setEditRow}
+                newDay={
+                  i === 0 ||
+                  !!differenceInCalendarDays(
+                    row.startTime,
+                    arr[Math.max(0, i - 1)].startTime
+                  )
+                }
+                dateTimeFormat={DATE_TIME_FORMAT}
+              />
+            </div>
           ) : (
             <EditableRecord
               key={row.id /*might be assigned during optimistic update*/}
