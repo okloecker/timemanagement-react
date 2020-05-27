@@ -1,14 +1,26 @@
 import React from "react";
 import { Grid, IconButton } from "@material-ui/core";
-import { Close, Delete, Done, Edit } from "@material-ui/icons";
+import {
+  Close,
+  Delete,
+  Done,
+  Edit,
+  CheckCircleOutline,
+  PlayCircleOutline
+} from "@material-ui/icons";
 
 /* Done/Edit/Cancel/Delete icon buttons in "edit" form */
-const StartEditControls = ({ id, setEditing }) => (
-  <Grid item xs={12} md={1}>
+const StartEditControls = ({ id, setEditing, setStop }) => (
+  <>
+    {setStop && (
+      <IconButton aria-label="edit" size="small" onClick={_ => setStop(id)}>
+        <CheckCircleOutline />
+      </IconButton>
+    )}
     <IconButton aria-label="edit" size="small" onClick={_ => setEditing(id)}>
       <Edit />
     </IconButton>
-  </Grid>
+  </>
 );
 
 const EditControls = ({
@@ -47,4 +59,16 @@ const AddControls = ({ handleSubmit, handleReset }) => (
   </Grid>
 );
 
-export { AddControls, EditControls, StartEditControls };
+/* The start/stop button to add or stopa new record with time current when pressed */
+const StartStopButton = ({ onClick, showStartButton }) => (
+  <Grid container justify="center">
+    <Grid item>
+      {showStartButton ? "Start new recording:" : "Stop current recording:"}
+      <IconButton aria-label="edit" size="medium" onClick={onClick}>
+        {showStartButton ? <PlayCircleOutline /> : <CheckCircleOutline />}
+      </IconButton>
+    </Grid>
+  </Grid>
+);
+
+export { AddControls, EditControls, StartEditControls, StartStopButton };

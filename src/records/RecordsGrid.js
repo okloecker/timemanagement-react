@@ -26,6 +26,7 @@ import EmptyState from "EmptyState";
 import AddRecord from "records/AddRecord";
 import ReadonlyRecord from "records/ReadonlyRecord";
 import EditableRecord from "records/EditableRecord";
+import { StartStopButton } from "./EditControls";
 
 const PAGE_SIZE = 30;
 const DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm";
@@ -365,6 +366,26 @@ const RecordsGrid = props => {
     setSnackMessage(null);
   };
 
+  const handleStop = async id => {
+    const row = data.find(d => d.id === id);
+    if (row)
+      await mutate({
+        row: {
+          ...row,
+          endTime: new Date()
+        },
+        method: "PUT",
+        authToken
+      });
+  };
+
+  const handleStart = async _ => {
+    await handleRecordAdd({
+      note: "",
+      startTime: new Date()
+    });
+  };
+
   /* Data fetching turned up error */
   if (status === "error") {
     return (
@@ -384,6 +405,8 @@ const RecordsGrid = props => {
   const firstIdx = Math.max(0, page - 1) * PAGE_SIZE;
   const lastIdx = page * PAGE_SIZE;
   const pageData = Array.isArray(data) ? data.slice(firstIdx, lastIdx) : [];
+
+  const activeRecordId = data && (data.find(d => !d.endTime) || {}).id;
 
   return (
     <Box mt={2}>
@@ -423,6 +446,13 @@ const RecordsGrid = props => {
       {(data || {}).error && (
         <Alert severity="error">{data.error.statusText}</Alert>
       )}
+
+      <StartStopButton
+        onClick={
+          activeRecordId ? () => handleStop(activeRecordId) : handleStart
+        }
+        showStartButton={!activeRecordId}
+      />
 
       {/* Pagination controls (if more data than fits on page 
           AND button to add record 
@@ -486,6 +516,7 @@ const RecordsGrid = props => {
                   )
                 }
                 dateTimeFormat={DATE_TIME_FORMAT}
+                setStop={!row.endTime ? handleStop : null}
               />
             </div>
           ) : (

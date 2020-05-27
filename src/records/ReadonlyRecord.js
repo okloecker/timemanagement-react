@@ -18,7 +18,8 @@ const ReadonlyRecord = ({
   note,
   newDay,
   dateTimeFormat,
-  setEditing
+  setEditing,
+  setStop
 }) => {
   const classes = useStyles();
   return (
@@ -29,7 +30,7 @@ const ReadonlyRecord = ({
 
       {/* Edit/Cancel etc icons */}
       <Grid item xs={12} sm={1}>
-        <StartEditControls setEditing={setEditing} id={id} />
+        <StartEditControls setEditing={setEditing} id={id} setStop={setStop} />
       </Grid>
 
       {/* StartTime field */}
