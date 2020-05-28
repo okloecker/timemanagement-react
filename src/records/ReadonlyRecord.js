@@ -3,11 +3,12 @@ import { Box, Divider, Grid } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import format from "date-fns/format";
 import isValid from "date-fns/isValid";
-import { minToHHMM } from "helpers/time";
+import { minToArr } from "helpers/time";
 import { StartEditControls } from "./EditControls";
+import TimeDuration from "TimeDuration";
 
 const useStyles = makeStyles({
-  duration: { fontStyle: "italic" }
+  duration: { fontStyle: "italic", textAlign: "right" }
 });
 
 const ReadonlyRecord = ({
@@ -56,7 +57,7 @@ const ReadonlyRecord = ({
       {/* duration field */}
       <Grid item xs={12} sm={2} md={1}>
         <Box m={1} className={classes.duration}>
-          {minToHHMM(durationMinutes, "—")}
+          <TimeDuration {...minToArr(durationMinutes)} fallback="—"/>
         </Box>
       </Grid>
 

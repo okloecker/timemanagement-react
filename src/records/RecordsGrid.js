@@ -28,6 +28,8 @@ import AddRecord from "records/AddRecord";
 import ReadonlyRecord from "records/ReadonlyRecord";
 import EditableRecord from "records/EditableRecord";
 import { StartStopButton } from "./EditControls";
+import { minToArr } from "helpers/time";
+import TimeDuration from "TimeDuration";
 
 const PAGE_SIZE = 30;
 const DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm";
@@ -35,13 +37,16 @@ const DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm";
 const recordSortFunction = (a, b) => compareDesc(a.startTime, b.startTime);
 
 const useStyles = makeStyles({
-  root: { minWidth: 275 },
+  root: { minWidth: 275, color: "#363737" }, // https://xkcd.com/color/rgb/ dark grey
   title: { fontSize: 20, textAlign: "center" },
   controls: { paddingTop: "16px", paddingBottom: "16px" },
   activeRecord: { backgroundColor: "#e9ffe9" },
-  pagination: { display: "inline-block" },
+  pagination: { marginTop: "16px", display: "inline-block" },
   fab: { paddingLeft: "8px" }
 });
+
+const calcTotalTime = (data = []) =>
+  data.reduce((acc, d) => acc + d.durationMinutes, 0);
 
 /* Async backend call to fetch data */
 const fetchRecords = async (
@@ -135,6 +140,9 @@ const RecordsGrid = props => {
   // current page if paging
   const [page, setPage] = React.useState(1);
 
+  // accumulated total time in minutes of all data
+  const [totalTime, setTotalTime] = React.useState(0);
+
   /* On unmounting, clear react-query cache, otherwise it will continue to
    * fetch
    */
@@ -202,6 +210,9 @@ const RecordsGrid = props => {
         });
     }
   });
+
+  React.useEffect(() => setTotalTime(calcTotalTime(data)), [data]);
+
 
   // Update record with new data, optimistically showing new data in table, but
   // rolling back on error
@@ -460,8 +471,22 @@ const RecordsGrid = props => {
         */}
       {!!pageData.length && (
         <div className={classes.controls}>
-          {data.length > PAGE_SIZE && (
+          <Fab
+            color="primary"
+            aria-label="add"
+            onClick={handleAddRecord}
+            size="small"
+          >
+            <Add />
+          </Fab>
+          {!!pageData.length && (
             <>
+              &emsp; Total time:&ensp;
+              <TimeDuration {...minToArr(totalTime)} />
+            </>
+          )}
+          {data.length > PAGE_SIZE && (
+            <div>
               <span className={classes.pagination}>
                 <Pagination
                   count={Math.ceil(data.length / PAGE_SIZE)}
@@ -471,16 +496,8 @@ const RecordsGrid = props => {
                 />
               </span>
               &emsp;
-            </>
+            </div>
           )}
-          <Fab
-            color="primary"
-            aria-label="add"
-            onClick={handleAddRecord}
-            size="small"
-          >
-            <Add />
-          </Fab>
         </div>
       )}
 
