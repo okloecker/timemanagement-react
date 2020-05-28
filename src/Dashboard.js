@@ -196,7 +196,7 @@ const Dashboard = props => {
                   <RecordsGrid
                     startDate={formValues.selectedStartDate}
                     endDate={formValues.selectedEndDate}
-                    searchText={formValues.searchText}
+                    searchText={(formValues.searchText||"").trim()}
                   />
                 </MuiPickersUtilsProvider>
               )}
