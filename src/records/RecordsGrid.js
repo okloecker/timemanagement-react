@@ -29,6 +29,7 @@ import ReadonlyRecord from "records/ReadonlyRecord";
 import EditableRecord from "records/EditableRecord";
 import { StartStopButton } from "./EditControls";
 import { minToArr } from "helpers/time";
+import { useInterval } from "helpers/useInterval";
 import TimeDuration from "TimeDuration";
 
 const PAGE_SIZE = 30;
@@ -143,6 +144,9 @@ const RecordsGrid = props => {
   // accumulated total time in minutes of all data
   const [totalTime, setTotalTime] = React.useState(0);
 
+  const [activeRecord, setActiveRecord] = React.useState();
+  const [activeRecordTime, setActiveRecordTime] = React.useState(0);
+
   /* On unmounting, clear react-query cache, otherwise it will continue to
    * fetch
    */
@@ -213,6 +217,32 @@ const RecordsGrid = props => {
 
   React.useEffect(() => setTotalTime(calcTotalTime(data)), [data]);
 
+  const updateActiveRecordDuration = React.useCallback(activeRecord => {
+    if ((activeRecord||{}).startTime) {
+      const duration = Math.floor(
+        (new Date().getTime() - activeRecord.startTime.getTime()) / 1000 / 60
+      );
+      setActiveRecordTime(duration);
+    }
+  }, []);
+
+  React.useEffect(
+    () => {
+      const arec = data && (data.find(d => !d.endTime));
+      if (arec) {
+        setActiveRecord(arec);
+        updateActiveRecordDuration(arec);
+      } else 
+        setActiveRecord(null);
+    },
+    [data, updateActiveRecordDuration]
+  );
+
+  // runs every so often to update duration of active recod
+  useInterval(
+    () => updateActiveRecordDuration(activeRecord),
+    !!activeRecord ? 10000 : null
+  );
 
   // Update record with new data, optimistically showing new data in table, but
   // rolling back on error
@@ -418,8 +448,6 @@ const RecordsGrid = props => {
   const lastIdx = page * PAGE_SIZE;
   const pageData = Array.isArray(data) ? data.slice(firstIdx, lastIdx) : [];
 
-  const activeRecordId = data && (data.find(d => !d.endTime) || {}).id;
-
   return (
     <Box mt={2}>
       {/* Empty state: no records found either because filter criteria are too
@@ -460,10 +488,8 @@ const RecordsGrid = props => {
       )}
 
       <StartStopButton
-        onClick={
-          activeRecordId ? () => handleStop(activeRecordId) : handleStart
-        }
-        showStartButton={!activeRecordId}
+        onClick={activeRecord ? () => handleStop(activeRecord.id) : handleStart}
+        showStartButton={!activeRecord}
       />
 
       {/* Pagination controls (if more data than fits on page 
@@ -522,7 +548,7 @@ const RecordsGrid = props => {
               <ReadonlyRecord
                 startTime={row.startTime}
                 endTime={row.endTime}
-                durationMinutes={row.durationMinutes}
+                durationMinutes={row.durationMinutes || activeRecordTime}
                 note={row.note}
                 id={row.id}
                 setEditing={setEditRow}
