@@ -74,4 +74,4 @@ const ReadonlyRecord = ({
   );
 };
 
-export default ReadonlyRecord;
+export default React.memo(ReadonlyRecord);

@@ -60,7 +60,7 @@ const AddControls = ({ handleSubmit, handleReset }) => (
 );
 
 /* The start/stop button to add or stopa new record with time current when pressed */
-const StartStopButton = ({ onClick, showStartButton }) => (
+const StartStopButton = React.memo(({ onClick, showStartButton }) => (
   <Grid container justify="center">
     <Grid item>
       {showStartButton ? "Start new recording:" : "Stop current recording:"}
@@ -69,6 +69,6 @@ const StartStopButton = ({ onClick, showStartButton }) => (
       </IconButton>
     </Grid>
   </Grid>
-);
+));
 
 export { AddControls, EditControls, StartEditControls, StartStopButton };
