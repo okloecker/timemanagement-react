@@ -22,6 +22,7 @@ import VisibilityOff from "@material-ui/icons/VisibilityOff";
 import { makeStyles } from "@material-ui/core/styles";
 import { Formik } from "formik";
 import { useMutation } from "react-query";
+import log from "loglevel";
 import { logSignValidateFun } from "helpers/validate";
 import Copyright from "Copyright";
 
@@ -125,7 +126,7 @@ const Signup = props => {
               }
             );
           } catch (err) {
-            console.log("POST error", err);
+            log.error("POST error", err);
           }
         }}
       >

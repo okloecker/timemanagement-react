@@ -10,6 +10,7 @@ import {
   Route,
   Switch
 } from "react-router-dom";
+import log from "loglevel";
 import Signup from "Signup";
 import { getStorageItemJson, removeStorageItem } from "storage/storage";
 
@@ -51,7 +52,7 @@ function App() {
         }
       });
     } catch (err) {
-      console.log("POST logout error", err);
+      log.error("POST logout error", err);
     }
   };
 

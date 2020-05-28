@@ -3,6 +3,10 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import App from "./App";
 import * as serviceWorker from "./serviceWorker";
+import log from "loglevel";
+
+if(process.env.NODE_ENV === "development")
+  log.setDefaultLevel("debug");
 
 ReactDOM.render(
   <React.StrictMode>

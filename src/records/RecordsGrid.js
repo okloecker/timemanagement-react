@@ -21,6 +21,7 @@ import parseISO from "date-fns/parseISO";
 import compareDesc from "date-fns/compareDesc";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import { queryCache, useMutation, useQuery } from "react-query";
+import log from "loglevel";
 import { getStorageItemJson } from "storage/storage";
 import EmptyState from "EmptyState";
 import AddRecord from "records/AddRecord";
@@ -79,7 +80,7 @@ const fetchRecords = async (
         .sort(recordSortFunction);
     }
   } catch (err) {
-    console.log("ERROR:", err);
+    log.error("ERROR:", err);
     return {
       error: {
         status: err.response.status,
@@ -241,7 +242,7 @@ const RecordsGrid = props => {
           );
           break;
         default:
-          console.log("Unknown method", method);
+          log.warn("Unknown method", method);
       }
       setEditRow(null);
       setGlobalError(null);
@@ -276,7 +277,7 @@ const RecordsGrid = props => {
           // nothing else to do here
           break;
         default:
-          console.log("Unknown method", method);
+          log.warn("Unknown method", method);
       }
       setGlobalError({
         message: `Update failed with error: ${err}`,
