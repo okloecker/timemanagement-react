@@ -63,7 +63,7 @@ const AddControls = ({ handleSubmit, handleReset }) => (
 const StartStopButton = React.memo(({ onClick, showStartButton }) => (
   <Grid container justify="center">
     <Grid item>
-      {showStartButton ? "Start new recording:" : "Stop current recording:"}
+      {showStartButton ? "Start new:" : "Stop current:"}
       <IconButton aria-label="edit" size="medium" onClick={onClick}>
         {showStartButton ? <PlayCircleOutline /> : <CheckCircleOutline />}
       </IconButton>
