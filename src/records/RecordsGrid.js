@@ -408,6 +408,7 @@ const RecordsGrid = props => {
     setSnackMessage(null);
   };
 
+  /* User clicked "Stop current" button */
   const handleStop = async id => {
     const row = data.find(d => d.id === id);
     if (row)
@@ -421,6 +422,7 @@ const RecordsGrid = props => {
       });
   };
 
+  /* User clicked "Start new" button */
   const handleStart = async _ => {
     await handleRecordAdd({
       note: "",
