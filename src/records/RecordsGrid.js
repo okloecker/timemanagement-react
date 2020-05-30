@@ -6,7 +6,8 @@ import {
   Fab,
   IconButton,
   LinearProgress,
-  Snackbar
+  Snackbar,
+  Tooltip
 } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import { Add, Close } from "@material-ui/icons";
@@ -118,7 +119,8 @@ const sortUniqData = data =>
     .filter(d => d.note)
     .sort((a, b) => compareDesc(a.startTime, b.startTime))
     .reduce(
-      (acc, d) => (acc.find(a => a.note === d.note) ? acc : acc.concat({ note:d.note, startTime: d.startTime })),
+      (acc, d) =>
+        acc.find(a => a.note === d.note) ? acc : acc.concat({ note: d.note }),
       []
     );
 
@@ -342,34 +344,31 @@ const RecordsGrid = props => {
       // update current cached data with latest from server
       const previousData = queryCache.getQueryData(recordsQueryKey);
       const newData = previousData
-          .map(r => {
-            // if a temporary ID was sent, server returns source-of-truth id and temp id in this format:
-            // "<dbId>_<tmpId>"
-            // dbid will be at least first part of id even if no "_" present
-            const [dbId, tmpId] = rqData.data.id.split("_");
-            return r.id === tmpId || r.id === dbId
-              ? imm
-                  .wrap(rqData.data)
-                  .set("id", dbId) // replace temporary ID
-                  .set(
-                    "startTime",
-                    // DateTimePicker expects Date object
-                    parseISO(rqData.data.startTime)
-                  )
-                  .set(
-                    "endTime",
-                    rqData.data.endTime ? parseISO(rqData.data.endTime) : null
-                  )
-                  .value()
-              : r;
-          })
+        .map(r => {
+          // if a temporary ID was sent, server returns source-of-truth id and temp id in this format:
+          // "<dbId>_<tmpId>"
+          // dbid will be at least first part of id even if no "_" present
+          const [dbId, tmpId] = rqData.data.id.split("_");
+          return r.id === tmpId || r.id === dbId
+            ? imm
+                .wrap(rqData.data)
+                .set("id", dbId) // replace temporary ID
+                .set(
+                  "startTime",
+                  // DateTimePicker expects Date object
+                  parseISO(rqData.data.startTime)
+                )
+                .set(
+                  "endTime",
+                  rqData.data.endTime ? parseISO(rqData.data.endTime) : null
+                )
+                .value()
+            : r;
+        })
         .sort(recordSortFunction);
-      const newTopActivities = sortUniqData(newData)
+      const newTopActivities = sortUniqData(newData);
       setTopActivities(sortUniqData(newTopActivities));
-      queryCache.setQueryData(
-        recordsQueryKey,
-        newData
-      );
+      queryCache.setQueryData(recordsQueryKey, newData);
     }
   });
 
@@ -525,14 +524,16 @@ const RecordsGrid = props => {
         */}
       {!!pageData.length && (
         <div className={classes.controls}>
-          <Fab
-            color="primary"
-            aria-label="add"
-            onClick={handleAddRecord}
-            size="small"
-          >
-            <Add />
-          </Fab>
+          <Tooltip title="Add" aria-label="add">
+            <Fab
+              color="primary"
+              aria-label="add"
+              onClick={handleAddRecord}
+              size="small"
+            >
+              <Add />
+            </Fab>
+          </Tooltip>
           {!!pageData.length && (
             <>
               &emsp; Total time:&ensp;
