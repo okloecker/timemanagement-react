@@ -111,6 +111,17 @@ const updateRecord = ({ row, user, authToken, method = "PUT" }) => {
   });
 };
 
+// Sorts "data" array of objects according to their "startTime" descending and
+// removes elements with duplicate "note" fields.
+const sortUniqData = data =>
+  [...data]
+    .filter(d => d.note)
+    .sort((a, b) => compareDesc(a.startTime, b.startTime))
+    .reduce(
+      (acc, d) => (acc.find(a => a.note === d.note) ? acc : acc.concat({ note:d.note, startTime: d.startTime })),
+      []
+    );
+
 /*
  * Component to show time records.
  * Responsive layout achieved by using Grid (not Table): on narrow screens, the
@@ -146,6 +157,8 @@ const RecordsGrid = props => {
 
   const [activeRecord, setActiveRecord] = React.useState();
   const [activeRecordTime, setActiveRecordTime] = React.useState(0);
+
+  const [topActivities, setTopActivities] = React.useState();
 
   /* On unmounting, clear react-query cache, otherwise it will continue to
    * fetch
@@ -212,13 +225,14 @@ const RecordsGrid = props => {
             }
           ]
         });
+      setTopActivities(sortUniqData(data));
     }
   });
 
   React.useEffect(() => setTotalTime(calcTotalTime(data)), [data]);
 
   const updateActiveRecordDuration = React.useCallback(activeRecord => {
-    if ((activeRecord||{}).startTime) {
+    if ((activeRecord || {}).startTime) {
       const duration = Math.floor(
         (new Date().getTime() - activeRecord.startTime.getTime()) / 1000 / 60
       );
@@ -228,12 +242,11 @@ const RecordsGrid = props => {
 
   React.useEffect(
     () => {
-      const arec = data && (data.find(d => !d.endTime));
+      const arec = data && data.find(d => !d.endTime);
       if (arec) {
         setActiveRecord(arec);
         updateActiveRecordDuration(arec);
-      } else 
-        setActiveRecord(null);
+      } else setActiveRecord(null);
     },
     [data, updateActiveRecordDuration]
   );
@@ -328,9 +341,7 @@ const RecordsGrid = props => {
     onSuccess: ({ data: rqData }) => {
       // update current cached data with latest from server
       const previousData = queryCache.getQueryData(recordsQueryKey);
-      queryCache.setQueryData(
-        recordsQueryKey,
-        previousData
+      const newData = previousData
           .map(r => {
             // if a temporary ID was sent, server returns source-of-truth id and temp id in this format:
             // "<dbId>_<tmpId>"
@@ -352,7 +363,12 @@ const RecordsGrid = props => {
                   .value()
               : r;
           })
-          .sort(recordSortFunction)
+        .sort(recordSortFunction);
+      const newTopActivities = sortUniqData(newData)
+      setTopActivities(sortUniqData(newTopActivities));
+      queryCache.setQueryData(
+        recordsQueryKey,
+        newData
       );
     }
   });
@@ -423,10 +439,15 @@ const RecordsGrid = props => {
   };
 
   /* User clicked "Start new" button */
-  const handleStart = async _ => {
+  const handleStart = async note => {
+    // if the dropdown next to start button returns undef, user hasn't changed it, so take the latest one
+    const realNote =
+      note === undefined || note === null
+        ? topActivities && topActivities.length && topActivities[0].note
+        : note.trim();
     await handleRecordAdd({
-      note: "",
-      startTime: new Date()
+      startTime: new Date(),
+      note: realNote
     });
   };
 
@@ -490,8 +511,13 @@ const RecordsGrid = props => {
       )}
 
       <StartStopButton
-        onClick={activeRecord ? () => handleStop(activeRecord.id) : handleStart}
+        onClick={
+          activeRecord
+            ? () => handleStop(activeRecord.id)
+            : note => handleStart(note)
+        }
         showStartButton={!activeRecord}
+        topActivities={topActivities}
       />
 
       {/* Pagination controls (if more data than fits on page 
