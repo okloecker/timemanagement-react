@@ -13,13 +13,13 @@ const TimeDuration = ({ h, m, fallback }) => {
           <span className={classes.unit}>h</span>{" "}
         </>
       )}
-      {!!m && (
+      {(!!m || m === 0) && (
         <>
           <span>{m}</span>
           <span className={classes.unit}>m</span>
         </>
       )}
-      {!h && !m && <span>{fallback}</span>}
+      {!h && !m && m!== 0 && <span>{fallback}</span>}
     </>
   );
 };

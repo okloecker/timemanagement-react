@@ -9,7 +9,7 @@ import {
   PlayCircleOutline
 } from "@material-ui/icons";
 import Autocomplete from "@material-ui/lab/Autocomplete";
-import log from "loglevel";
+// import log from "loglevel";
 
 /* Done/Edit/Cancel/Delete icon buttons in "edit" form */
 const StartEditControls = ({ id, setEditing, setStop }) => (
@@ -77,11 +77,6 @@ const StartStopButton = ({ onClick, showStartButton, topActivities = [] }) => {
             onSelect={setPendingValue}
             defaultValue={topActivities[0]}
           />
-          {log.debug(
-            "defaultValue",
-            topActivities[0].note,
-            topActivities[0].startTime
-          )}
         </Grid>
       )}
       <Grid item>
