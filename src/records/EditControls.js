@@ -1,12 +1,12 @@
 import React from "react";
-import { Grid, IconButton, TextField } from "@material-ui/core";
+import { Fab, Grid, IconButton, TextField, Tooltip } from "@material-ui/core";
 import {
   Close,
   Delete,
   Done,
   Edit,
-  CheckCircleOutline,
-  PlayCircleOutline
+  Check,
+  PlayArrow
 } from "@material-ui/icons";
 import Autocomplete from "@material-ui/lab/Autocomplete";
 // import log from "loglevel";
@@ -16,7 +16,7 @@ const StartEditControls = ({ id, setEditing, setStop }) => (
   <>
     {setStop && (
       <IconButton aria-label="edit" size="small" onClick={_ => setStop(id)}>
-        <CheckCircleOutline />
+        <Check />
       </IconButton>
     )}
     <IconButton aria-label="edit" size="small" onClick={_ => setEditing(id)}>
@@ -65,52 +65,44 @@ const AddControls = ({ handleSubmit, handleReset }) => (
 const StartStopButton = ({ onClick, showStartButton, topActivities = [] }) => {
   const [pendingValue, setPendingValue] = React.useState();
   return (
-    <Grid container justify="center">
+    <Grid container justify="center" spacing={2}>
       {!!topActivities.length && showStartButton && (
-        <Grid item>
-          <ActivityDropddown
+        <Grid item xs={12} md={8}>
+          <Autocomplete
+            id="activity-dropdown"
             /* when deleting latest activity, make sure a new component is created by
              * changing the key, otherwise material-ui will complain about making an
              * uncontrolled component controlled by changing defaultValue: */
             key={topActivities[0].note}
+            fullWidth
+            freeSolo
             options={topActivities}
-            onSelect={setPendingValue}
+            getOptionLabel={option => option.note}
+            onSelect={e => setPendingValue(e.target.value)}
             defaultValue={topActivities[0]}
+            renderInput={params => (
+              <TextField {...params} label="Previous Notes" />
+            )}
           />
         </Grid>
       )}
-      <Grid item>
-        {!!showStartButton ? "Start new:" : "Stop current:"}
-        <IconButton
-          aria-label="edit"
-          size="medium"
-          onClick={() => onClick(pendingValue)}
+      <Grid item xs={12} md={4}>
+        <Tooltip
+          title={!!showStartButton ? "Start new" : "Stop current"}
+          aria-label={!!showStartButton ? "Start new:" : "Stop current:"}
         >
-          {showStartButton ? <PlayCircleOutline /> : <CheckCircleOutline />}
-        </IconButton>
+          <Fab
+            color="primary"
+            aria-label="edit"
+            onClick={() => onClick(pendingValue)}
+            size="large"
+          >
+            {showStartButton ? <PlayArrow /> : <Check />}
+          </Fab>
+        </Tooltip>
       </Grid>
     </Grid>
   );
 };
 
-const ActivityDropddown = ({ options, onSelect, defaultValue }) => (
-  <Autocomplete
-    id="activity-dropdown"
-    fullWidth
-    freeSolo
-    options={options}
-    getOptionLabel={option => option.note}
-    style={{ width: 300 }}
-    onSelect={e => onSelect(e.target.value)}
-    defaultValue={defaultValue}
-    renderInput={params => <TextField {...params} label="Previous Notes" />}
-  />
-);
-
-export {
-  AddControls,
-  EditControls,
-  StartEditControls,
-  StartStopButton,
-  ActivityDropddown
-};
+export { AddControls, EditControls, StartEditControls, StartStopButton };
