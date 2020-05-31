@@ -536,22 +536,9 @@ const RecordsGrid = props => {
           </Tooltip>
           {!!pageData.length && (
             <>
-              &emsp; Total time:&ensp;
+              &emsp; Total time for filter:&ensp;
               <TimeDuration {...minToArr(totalTime)} />
             </>
-          )}
-          {data.length > PAGE_SIZE && (
-            <div>
-              <span className={classes.pagination}>
-                <Pagination
-                  count={Math.ceil(data.length / PAGE_SIZE)}
-                  showFirstButton
-                  showLastButton
-                  onChange={(e, p) => setPage(p)}
-                />
-              </span>
-              &emsp;
-            </div>
           )}
         </div>
       )}
@@ -606,7 +593,7 @@ const RecordsGrid = props => {
           );
         })}
 
-      {/* Additional paging controls at bottom of page */}
+      {/* paging controls at bottom of page */}
       {!!pageData.length && data.length > PAGE_SIZE && (
         <>
           <Box mt={1}>
