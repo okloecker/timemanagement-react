@@ -24,13 +24,17 @@ const useStyles = makeStyles({
 const StartEditControls = ({ id, setEditing, setStop }) => (
   <>
     {setStop && (
-      <IconButton aria-label="edit" size="small" onClick={_ => setStop(id)}>
-        <Check />
-      </IconButton>
+      <Tooltip title="Finish" aria-label="finish">
+        <IconButton aria-label="edit" size="small" onClick={_ => setStop(id)}>
+          <Check />
+        </IconButton>
+      </Tooltip>
     )}
-    <IconButton aria-label="edit" size="small" onClick={_ => setEditing(id)}>
-      <Edit />
-    </IconButton>
+    <Tooltip title="Edit" aria-label="edit">
+      <IconButton aria-label="edit" size="small" onClick={_ => setEditing(id)}>
+        <Edit />
+      </IconButton>
+    </Tooltip>
   </>
 );
 
@@ -42,31 +46,41 @@ const EditControls = ({
   setEditing
 }) => (
   <>
-    <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
-      <Done />
-    </IconButton>
-    <IconButton aria-label="reset" size="small" onClick={handleReset}>
-      <Close />
-    </IconButton>
-    <IconButton
-      aria-label="delete"
-      size="small"
-      onClick={_ => handleRecordDelete(row)}
-    >
-      <Delete />
-    </IconButton>
+    <Tooltip title="Edit" aria-label="edit">
+      <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
+        <Done />
+      </IconButton>
+    </Tooltip>
+    <Tooltip title="Cancel" aria-label="cancel">
+      <IconButton aria-label="cancel" size="small" onClick={handleReset}>
+        <Close />
+      </IconButton>
+    </Tooltip>
+    <Tooltip title="Delete" aria-label="delete">
+      <IconButton
+        aria-label="delete"
+        size="small"
+        onClick={_ => handleRecordDelete(row)}
+      >
+        <Delete />
+      </IconButton>
+    </Tooltip>
   </>
 );
 
 /* Done/Close buttons in "add" form */
 const AddControls = ({ handleSubmit, handleReset }) => (
   <Grid item xs={12} md={1}>
-    <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
-      <Done />
-    </IconButton>
-    <IconButton aria-label="edit" size="small" onClick={handleReset}>
-      <Close />
-    </IconButton>
+    <Tooltip title="Edit" aria-label="edit">
+      <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
+        <Done />
+      </IconButton>
+    </Tooltip>
+    <Tooltip title="Cancel" aria-label="cancel">
+      <IconButton aria-label="cancel" size="small" onClick={handleReset}>
+        <Close />
+      </IconButton>
+    </Tooltip>
   </Grid>
 );
 
