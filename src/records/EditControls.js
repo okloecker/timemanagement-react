@@ -8,8 +8,17 @@ import {
   Check,
   PlayArrow
 } from "@material-ui/icons";
+import { makeStyles } from "@material-ui/core/styles";
 import Autocomplete from "@material-ui/lab/Autocomplete";
 // import log from "loglevel";
+
+const useStyles = makeStyles({
+  startStopButton: {
+    position: "absolute",
+    top: "1em",
+    right: "1em"
+  }
+});
 
 /* Done/Edit/Cancel/Delete icon buttons in "edit" form */
 const StartEditControls = ({ id, setEditing, setStop }) => (
@@ -63,6 +72,7 @@ const AddControls = ({ handleSubmit, handleReset }) => (
 
 /* The start/stop button to add or stopa new record with time current when pressed */
 const StartStopButton = ({ onClick, showStartButton, topActivities = [] }) => {
+  const classes = useStyles();
   const [pendingValue, setPendingValue] = React.useState();
   return (
     <Grid container justify="center" spacing={2}>
@@ -86,7 +96,7 @@ const StartStopButton = ({ onClick, showStartButton, topActivities = [] }) => {
           />
         </Grid>
       )}
-      <Grid item xs={12} md={4}>
+      <div className={classes.startStopButton}>
         <Tooltip
           title={!!showStartButton ? "Start new" : "Stop current"}
           aria-label={!!showStartButton ? "Start new:" : "Stop current:"}
@@ -100,7 +110,7 @@ const StartStopButton = ({ onClick, showStartButton, topActivities = [] }) => {
             {showStartButton ? <PlayArrow /> : <Check />}
           </Fab>
         </Tooltip>
-      </Grid>
+      </div>
     </Grid>
   );
 };
