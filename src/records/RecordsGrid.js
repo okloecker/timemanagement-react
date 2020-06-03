@@ -48,7 +48,10 @@ const useStyles = makeStyles({
 });
 
 const calcTotalTime = (data = []) =>
-  data.reduce((acc, d) => acc + d.durationMinutes, 0);
+  Array.isArray(data)
+    // durationMinutes will be undefined for activeRecord without endTime:
+    ? data.reduce((acc, d) => acc + (d.durationMinutes || 0), 0)
+    : 0;
 
 /* Async backend call to fetch data */
 const fetchRecords = async (
@@ -233,10 +236,15 @@ const RecordsGrid = props => {
           ]
         });
       setTopActivities(sortUniqData(data));
+
+      // const hoursPerDay = data.reduce((acc, d) => (), {});
     }
   });
 
-  React.useEffect(() => setTotalTime(calcTotalTime(data)), [data]);
+  React.useEffect(() => setTotalTime(calcTotalTime(data) + activeRecordTime), [
+    data,
+    activeRecordTime
+  ]);
 
   const updateActiveRecordDuration = React.useCallback(activeRecord => {
     if ((activeRecord || {}).startTime) {
