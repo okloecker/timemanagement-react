@@ -456,10 +456,14 @@ const RecordsGrid = props => {
   /* User clicked "Start new" button */
   const handleStart = async note => {
     // if the dropdown next to start button returns undef, user hasn't changed it, so take the latest one
-    const realNote =
-      note === undefined || note === null
-        ? topActivities && topActivities.length && topActivities[0].note
-        : note.trim();
+    let realNote;
+    if (
+      (note === undefined || note === null) &&
+      topActivities &&
+      topActivities.length
+    )
+      realNote = topActivities[0].note;
+    else realNote = (note || "").trim();
     await handleRecordAdd({
       startTime: new Date(),
       note: realNote
