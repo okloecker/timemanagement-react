@@ -75,7 +75,8 @@ const fetchRecords = async (
     );
     if (result.status >= 400) {
       return {
-        error: { status: result.status, statusText: result.statusText }
+        error: { status: result.status, statusText: result.statusText },
+        data: []
       };
     } else {
       return result.data.data
@@ -87,11 +88,13 @@ const fetchRecords = async (
         .sort(recordSortFunction);
     }
   } catch (err) {
-    log.error("ERROR:", err);
+    log.error("fetchRecords caught error:", err);
     return {
       error: {
         status: err.response.status,
-        statusText: `${err.response.statusText}  ${err.response.data}`
+        statusText: `${err.response.statusText}  ${JSON.stringify(
+          err.response.data
+        )}`
       }
     };
   }
@@ -215,6 +218,8 @@ const RecordsGrid = props => {
   const { status, data, error } = useQuery(recordsQueryKey, fetchRecords, {
     staleTime: 10 * 1000, // milliseconds
     onSuccess: data => {
+      if (data.error) return;
+
       const recordsWithoutEndTime = data.filter(d => !d.endTime);
       if (recordsWithoutEndTime.length > 1)
         setGlobalError({
@@ -244,11 +249,14 @@ const RecordsGrid = props => {
 
   React.useEffect(
     () => {
-      const arec = data && data.find(d => !d.endTime);
+      const arec = Array.isArray(data) && data.find(d => !d.endTime);
       if (arec) {
         setActiveRecord(arec);
         updateActiveRecordDuration(arec);
-      } else setActiveRecord(null);
+      } else {
+        setActiveRecord(null);
+        setActiveRecordTime(0);
+      }
     },
     [data, updateActiveRecordDuration]
   );
