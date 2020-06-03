@@ -385,6 +385,9 @@ const RecordsGrid = props => {
       const newTopActivities = sortUniqData(newData);
       setTopActivities(sortUniqData(newTopActivities));
       queryCache.setQueryData(recordsQueryKey, newData);
+    },
+    onSettled: () => {
+      queryCache.refetchQueries(recordsQueryKey);
     }
   });
 
