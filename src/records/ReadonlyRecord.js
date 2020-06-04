@@ -2,7 +2,7 @@ import { Box, Divider, Grid, Typography } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import format from "date-fns/format";
 import isValid from "date-fns/isValid";
-import { minToArr } from "helpers/time";
+import { minToArr, minToHHMM } from "helpers/time";
 import React from "react";
 import TimeDuration from "TimeDuration";
 
@@ -33,7 +33,8 @@ const ReadonlyRecord = ({
   newDay,
   dateTimeFormat,
   setEditing,
-  setStop
+  setStop,
+  hoursPerDay
 }) => {
   const classes = useStyles();
   return (
@@ -48,7 +49,8 @@ const ReadonlyRecord = ({
               display="block"
               variant="caption"
             >
-              {format(startTime, "dd LLL yyyy")}
+              {format(startTime, "dd LLL yyyy")}{' - '}
+              { minToHHMM(hoursPerDay[format(startTime, "yyyy-MM-dd")] || 0, 0)}
             </Typography>
           </>
         )}

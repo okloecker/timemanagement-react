@@ -15,6 +15,7 @@ import { Alert, Pagination } from "@material-ui/lab";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import * as imm from "object-path-immutable";
+import format from "date-fns/format";
 import formatISO from "date-fns/formatISO";
 import isDate from "date-fns/isDate";
 import isValid from "date-fns/isValid";
@@ -49,9 +50,21 @@ const useStyles = makeStyles({
 
 const calcTotalTime = (data = []) =>
   Array.isArray(data)
-    // durationMinutes will be undefined for activeRecord without endTime:
-    ? data.reduce((acc, d) => acc + (d.durationMinutes || 0), 0)
+    ? // durationMinutes might be undefined for activeRecord without endTime:
+      data.reduce((acc, d) => acc + (d.durationMinutes || 0), 0)
     : 0;
+
+// calculates minutes between "startTime" and "now"
+const calcRunningTime = startTime =>
+  Math.floor((new Date().getTime() - startTime.getTime()) / 1000 / 60);
+
+const calcHoursPerDay = (data = []) =>
+  data.reduce((acc, d) => {
+    const day = format(d.startTime, "yyyy-MM-dd");
+    let dayVal = acc[day] || 0;
+    acc[day] = dayVal + (d.durationMinutes || calcRunningTime(d.startTime));
+    return acc;
+  }, {});
 
 /* Async backend call to fetch data */
 const fetchRecords = async (
@@ -162,6 +175,7 @@ const RecordsGrid = props => {
 
   // accumulated total time in minutes of all data
   const [totalTime, setTotalTime] = React.useState(0);
+  const [hoursPerDay, setHoursPerDay] = React.useState({});
 
   const [activeRecord, setActiveRecord] = React.useState();
   const [activeRecordTime, setActiveRecordTime] = React.useState(0);
@@ -237,21 +251,21 @@ const RecordsGrid = props => {
         });
       setTopActivities(sortUniqData(data));
 
-      // const hoursPerDay = data.reduce((acc, d) => (), {});
+      setHoursPerDay(calcHoursPerDay(data));
     }
   });
 
-  React.useEffect(() => setTotalTime(calcTotalTime(data) + activeRecordTime), [
-    data,
-    activeRecordTime
-  ]);
+  React.useEffect(
+    () => {
+      setTotalTime(calcTotalTime(data) + activeRecordTime);
+      setHoursPerDay(calcHoursPerDay(data));
+    },
+    [data, activeRecordTime]
+  );
 
   const updateActiveRecordDuration = React.useCallback(activeRecord => {
     if ((activeRecord || {}).startTime) {
-      const duration = Math.floor(
-        (new Date().getTime() - activeRecord.startTime.getTime()) / 1000 / 60
-      );
-      setActiveRecordTime(duration);
+      setActiveRecordTime(calcRunningTime(activeRecord.startTime));
     }
   }, []);
 
@@ -469,7 +483,8 @@ const RecordsGrid = props => {
     else realNote = (note || "").trim();
     await handleRecordAdd({
       startTime: new Date(),
-      note: realNote
+      note: realNote,
+      durationMinutes: 0
     });
   };
 
@@ -600,6 +615,7 @@ const RecordsGrid = props => {
                 }
                 dateTimeFormat={DATE_TIME_FORMAT}
                 setStop={!row.endTime ? handleStop : null}
+                hoursPerDay={hoursPerDay}
               />
             </div>
           ) : (
