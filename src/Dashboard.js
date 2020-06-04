@@ -112,6 +112,7 @@ const Dashboard = props => {
                           margin="dense"
                           label="Start Date"
                           format="yyyy-MM-dd"
+                          showTodayButton
                           value={values.selectedStartDate}
                           onChange={e =>
                             handleDateChange(
@@ -135,6 +136,7 @@ const Dashboard = props => {
                           margin="dense"
                           label="End Date"
                           format="yyyy-MM-dd"
+                          showTodayButton
                           value={values.selectedEndDate}
                           onChange={e =>
                             handleDateChange(
