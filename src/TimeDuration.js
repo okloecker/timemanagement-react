@@ -1,7 +1,7 @@
 import { makeStyles } from "@material-ui/core/styles";
 import React from "react";
 
-const useStyles = makeStyles({ unit: { fontSize: "x-small" } });
+const useStyles = makeStyles({ unit: { fontSize: "smaller" } });
 
 const TimeDuration = ({ h, m, fallback }) => {
   const classes = useStyles();

@@ -2,7 +2,7 @@ import { Box, Divider, Grid, Typography } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import format from "date-fns/format";
 import isValid from "date-fns/isValid";
-import { minToArr, minToHHMM } from "helpers/time";
+import { minToArr } from "helpers/time";
 import React from "react";
 import TimeDuration from "TimeDuration";
 
@@ -11,7 +11,6 @@ import { StartEditControls } from "./EditControls";
 const useStyles = makeStyles(theme => ({
   duration: {
     textAlign: "right",
-    timeDuration: { color: "#3f51b5" },
     fontWeight: 200,
     color: "#3f51b5"
   },
@@ -49,8 +48,15 @@ const ReadonlyRecord = ({
               display="block"
               variant="caption"
             >
-              {format(startTime, "dd LLL yyyy")}{' - '}
-              { minToHHMM(hoursPerDay[format(startTime, "yyyy-MM-dd")] || 0, 0)}
+              {format(startTime, "dd LLL yyyy")}
+              {" - "}
+              <TimeDuration
+                {...minToArr(
+                  hoursPerDay[format(startTime, "yyyy-MM-dd")] || 0,
+                  0
+                )}
+                fallback="—"
+              />
             </Typography>
           </>
         )}
@@ -98,7 +104,7 @@ const ReadonlyRecord = ({
   );
 };
 
-const FormatHHMM = ({d, classes}) => (
+const FormatHHMM = ({ d, classes }) => (
   <>
     <span className={classes.timeHH}>{format(d, "HH")}</span>:
     <span className={classes.timeMM}>{format(d, "mm")}</span>
