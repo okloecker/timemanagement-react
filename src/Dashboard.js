@@ -18,6 +18,7 @@ import endOfMonth from "date-fns/endOfMonth";
 import isBefore from "date-fns/isBefore";
 import isEqual from "date-fns/isEqual";
 import parseISO from "date-fns/parseISO";
+import log from "loglevel";
 import { getStorageItem, setStorageItem } from "storage/storage";
 import {
   MuiPickersUtilsProvider,
@@ -77,6 +78,34 @@ const Dashboard = props => {
   const handleMouseDownSearch = event => {
     event.preventDefault();
   };
+
+  // Keyboard shortcuts: imperatively remote control RecordsGrid's start/stop
+  // button to start an active record with "s" and stop it with "x"
+  const recordsGridRef = React.createRef();
+  React.useEffect(
+    () => {
+      const onKeyUp = ({ key }) => {
+        if (recordsGridRef && recordsGridRef.current) {
+          switch (key.toLowerCase()) {
+            case "s":
+              recordsGridRef.current.toggle(true);
+              break;
+            case "x":
+              recordsGridRef.current.toggle(false);
+              break;
+            default:
+              log("Keyboard shortcut not defined:", key);
+          }
+        }
+      };
+
+      document.addEventListener("keyup", onKeyUp);
+      return () => {
+        window.removeEventListener("keyup", onKeyUp);
+      };
+    },
+    [recordsGridRef]
+  );
 
   return (
     <Box m={2}>
@@ -198,7 +227,8 @@ const Dashboard = props => {
                   <RecordsGrid
                     startDate={formValues.selectedStartDate}
                     endDate={formValues.selectedEndDate}
-                    searchText={(formValues.searchText||"").trim()}
+                    searchText={(formValues.searchText || "").trim()}
+                    ref={recordsGridRef}
                   />
                 </MuiPickersUtilsProvider>
               )}

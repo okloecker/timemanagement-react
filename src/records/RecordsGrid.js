@@ -148,7 +148,7 @@ const sortUniqData = data =>
  * Responsive layout achieved by using Grid (not Table): on narrow screens, the
  * rows will stack internally.
  */
-const RecordsGrid = props => {
+const RecordsGrid = React.forwardRef((props, ref) => {
   const classes = useStyles();
 
   const authToken = ((getStorageItemJson("userInfo") || {}).authToken || {})
@@ -181,6 +181,16 @@ const RecordsGrid = props => {
   const [activeRecordTime, setActiveRecordTime] = React.useState(0);
 
   const [topActivities, setTopActivities] = React.useState();
+
+  // Components rendering RecordsGrid can call their ref to call
+  // "ref.current.toggle()" to start/stop an active record
+  React.useImperativeHandle(ref, () => ({
+    toggle: toggleOn => {
+      console.log("toggleOn:", toggleOn, "activeRecord:", activeRecord);
+      if (activeRecord && !toggleOn) handleStop(activeRecord.id);
+      else if (!activeRecord && toggleOn) handleStart();
+    }
+  }));
 
   /* On unmounting, clear react-query cache, otherwise it will continue to
    * fetch
@@ -687,7 +697,7 @@ const RecordsGrid = props => {
       />
     </Box>
   );
-};
+});
 
 // Memoize component to minimize rendering of complex Grid
 export default React.memo(RecordsGrid);
