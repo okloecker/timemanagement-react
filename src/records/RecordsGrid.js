@@ -59,7 +59,7 @@ const calcRunningTime = startTime =>
   Math.floor((new Date().getTime() - startTime.getTime()) / 1000 / 60);
 
 const calcHoursPerDay = (data = []) =>
-  data.reduce((acc, d) => {
+  (data || []).reduce((acc, d) => {
     const day = format(d.startTime, "yyyy-MM-dd");
     let dayVal = acc[day] || 0;
     acc[day] = dayVal + (d.durationMinutes || calcRunningTime(d.startTime));
@@ -182,13 +182,26 @@ const RecordsGrid = React.forwardRef((props, ref) => {
 
   const [topActivities, setTopActivities] = React.useState();
 
+  // React ref to TextField "note" in EditableRecord so it can be focused
+  const noteRef = React.useRef(null);
+
   // Components rendering RecordsGrid can call their ref to call
   // "ref.current.toggle()" to start/stop an active record
   React.useImperativeHandle(ref, () => ({
     toggle: toggleOn => {
-      console.log("toggleOn:", toggleOn, "activeRecord:", activeRecord);
-      if (activeRecord && !toggleOn) handleStop(activeRecord.id);
-      else if (!activeRecord && toggleOn) handleStart();
+      // programmatically start/stop active record, but make sure it's not being edited
+      if(!editRow && !addRow){
+        if (activeRecord && !toggleOn) handleStop(activeRecord.id);
+        else if (!activeRecord && toggleOn) handleStart();
+      }
+    },
+    editLatest: _ => {
+      let idToEdit;
+      if(activeRecord) idToEdit = activeRecord.id;
+      else if(data && data.length) idToEdit = data[0].id;
+      console.log('editLatest', idToEdit)
+      if(idToEdit) setEditRow(idToEdit);
+      if(noteRef) noteRef.current.focus();
     }
   }));
 
@@ -638,6 +651,7 @@ const RecordsGrid = React.forwardRef((props, ref) => {
                 if (v !== row.startTime) handleRowUpdate({ row, newRow: v });
               }}
               dateTimeFormat={DATE_TIME_FORMAT}
+              noteRef={noteRef}
             />
           );
         })}

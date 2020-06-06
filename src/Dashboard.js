@@ -18,7 +18,6 @@ import endOfMonth from "date-fns/endOfMonth";
 import isBefore from "date-fns/isBefore";
 import isEqual from "date-fns/isEqual";
 import parseISO from "date-fns/parseISO";
-import log from "loglevel";
 import { getStorageItem, setStorageItem } from "storage/storage";
 import {
   MuiPickersUtilsProvider,
@@ -80,12 +79,13 @@ const Dashboard = props => {
   };
 
   // Keyboard shortcuts: imperatively remote control RecordsGrid's start/stop
-  // button to start an active record with "s" and stop it with "x"
+  // button to start an active record with "ctrl-alt-s" and stop it with "ctrl-alt-x"
+  // and edit with "ctrl-alt-e"
   const recordsGridRef = React.createRef();
   React.useEffect(
     () => {
-      const onKeyUp = ({ key }) => {
-        if (recordsGridRef && recordsGridRef.current) {
+      const onKeyUp = ({ key, shiftKey, ctrlKey, altKey }) => {
+        if (recordsGridRef && recordsGridRef.current && ctrlKey && altKey) {
           switch (key.toLowerCase()) {
             case "s":
               recordsGridRef.current.toggle(true);
@@ -93,8 +93,11 @@ const Dashboard = props => {
             case "x":
               recordsGridRef.current.toggle(false);
               break;
+            case "e":
+              recordsGridRef.current.editLatest();
+              break;
             default:
-              log("Keyboard shortcut not defined:", key);
+            // Keyboard shortcut not defined
           }
         }
       };

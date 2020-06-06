@@ -19,7 +19,8 @@ const EditableRecord = ({
   setEditing,
   handleRecordDelete,
   onUpdate,
-  dateTimeFormat
+  dateTimeFormat,
+  noteRef
 }) => {
   const classes = useStyles();
   return (
@@ -110,6 +111,7 @@ const EditableRecord = ({
               fullWidth
               error={!!errors.note}
               helperText={errors.note}
+              inputRef={noteRef}
             />
           </Grid>
 
