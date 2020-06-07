@@ -18,6 +18,8 @@ import endOfMonth from "date-fns/endOfMonth";
 import isBefore from "date-fns/isBefore";
 import isEqual from "date-fns/isEqual";
 import parseISO from "date-fns/parseISO";
+import startOfDay from "date-fns/startOfDay";
+import endOfDay from "date-fns/endOfDay";
 import { getStorageItem, setStorageItem } from "storage/storage";
 import {
   MuiPickersUtilsProvider,
@@ -146,10 +148,10 @@ const Dashboard = props => {
                           format="yyyy-MM-dd"
                           showTodayButton
                           value={values.selectedStartDate}
-                          onChange={e =>
+                          onChange={d =>
                             handleDateChange(
                               "selectedStartDate",
-                              e,
+                              startOfDay(d),
                               setFieldValue
                             )
                           }
@@ -170,10 +172,10 @@ const Dashboard = props => {
                           format="yyyy-MM-dd"
                           showTodayButton
                           value={values.selectedEndDate}
-                          onChange={e =>
+                          onChange={d =>
                             handleDateChange(
                               "selectedEndDate",
-                              e,
+                              endOfDay(d),
                               setFieldValue
                             )
                           }
