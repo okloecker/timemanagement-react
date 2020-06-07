@@ -28,6 +28,7 @@ import {
 import RecordsGrid from "records/RecordsGrid";
 
 const DEBOUNCE_TIMEOUT_MS = 500;
+const DATE_FORMAT = "yyyy-MM-dd";
 
 const useStyles = makeStyles(theme => ({
   root: {
@@ -145,7 +146,7 @@ const Dashboard = props => {
                           id="date-picker-dialog-start"
                           margin="dense"
                           label="Start Date"
-                          format="yyyy-MM-dd"
+                          format={DATE_FORMAT}
                           showTodayButton
                           value={values.selectedStartDate}
                           onChange={d =>
@@ -169,7 +170,7 @@ const Dashboard = props => {
                           id="date-picker-dialog-end"
                           margin="dense"
                           label="End Date"
-                          format="yyyy-MM-dd"
+                          format={DATE_FORMAT}
                           showTodayButton
                           value={values.selectedEndDate}
                           onChange={d =>

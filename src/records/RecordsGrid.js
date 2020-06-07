@@ -35,6 +35,7 @@ import TimeDuration from "TimeDuration";
 
 const PAGE_SIZE = 30;
 const DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm";
+const DATE_FORMAT = "yyyy-MM-dd";
 
 const recordSortFunction = (a, b) => compareDesc(a.startTime, b.startTime);
 
@@ -59,7 +60,7 @@ const calcRunningTime = startTime =>
 
 const calcHoursPerDay = (data = []) => 
   data.reduce((acc, d) => {
-    const day = format(d.startTime, "yyyy-MM-dd");
+    const day = format(d.startTime, DATE_FORMAT);
     let dayVal = acc[day] || 0;
     acc[day] = dayVal + (d.durationMinutes || calcRunningTime(d.startTime));
     return acc;

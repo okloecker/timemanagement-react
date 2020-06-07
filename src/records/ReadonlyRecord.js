@@ -8,6 +8,9 @@ import TimeDuration from "TimeDuration";
 
 import { StartEditControls } from "./EditControls";
 
+const DATE_FORMAT = "yyyy-MM-dd";
+const HUMAN_DATE_FORMAT = "dd LLL yyyy";
+
 const useStyles = makeStyles(theme => ({
   duration: {
     textAlign: "right",
@@ -48,11 +51,11 @@ const ReadonlyRecord = ({
               display="block"
               variant="caption"
             >
-              {format(startTime, "dd LLL yyyy")}
+              {format(startTime, HUMAN_DATE_FORMAT)}
               {" - "}
               <TimeDuration
                 {...minToArr(
-                  hoursPerDay[format(startTime, "yyyy-MM-dd")] || 0,
+                  hoursPerDay[format(startTime, DATE_FORMAT)] || 0,
                   0
                 )}
                 fallback="—"
