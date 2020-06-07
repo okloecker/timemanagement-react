@@ -232,6 +232,7 @@ const Dashboard = props => {
                     endDate={formValues.selectedEndDate}
                     searchText={(formValues.searchText || "").trim()}
                     ref={recordsGridRef}
+                    userInfo={props.userInfo}
                   />
                 </MuiPickersUtilsProvider>
               )}

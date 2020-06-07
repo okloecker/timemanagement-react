@@ -1,5 +1,4 @@
 import React from "react";
-import { setStorageItemJson } from "storage/storage";
 import axios from "axios";
 
 import clsx from "clsx";
@@ -93,11 +92,10 @@ const Login = props => {
               {
                 onSuccess: response => {
                   const rqData = response.data; // react-query object
-                  setStorageItemJson("userInfo", rqData.data);
                   setStatus({
                     loginSuccessMessage: rqData.message
                   });
-                  props.setAuthToken(rqData.data.authToken.token);
+                  props.setUserInfo(rqData.data);
                 },
                 onError: error => {
                   const rqData = error.response.data; // react-query object

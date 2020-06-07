@@ -12,21 +12,28 @@ import {
 } from "react-router-dom";
 import log from "loglevel";
 import Signup from "Signup";
-import { getStorageItemJson, removeStorageItem } from "storage/storage";
+import { getStorageItemJson, setStorageItemJson, removeStorageItem } from "storage/storage";
+
+const getAuthToken = userInfo => ((userInfo||{}).authToken||{}).token;
 
 /*
  * Entry point for app, containing the routes and logout handling.
  */
 function App() {
-  const [authToken, setAuthToken] = React.useState(
-    ((getStorageItemJson("userInfo") || {}).authToken || {}).token
+  const [userInfo, setUserInfo] = React.useState(
+    (getStorageItemJson("userInfo") || {})
   );
   const [logoutResult, setLogoutResult] = React.useState({});
+
+  const updateUserInfo = userInfo => {
+    setStorageItemJson("userInfo", userInfo);
+    setUserInfo(userInfo);
+  }
 
   const getLogout = () =>
     axios("/api/logout", {
       method: "POST",
-      headers: { "Content-Type": "application/json", AuthToken: authToken },
+      headers: { "Content-Type": "application/json", AuthToken: getAuthToken(userInfo) },
       data: { userId: (getStorageItemJson("userInfo") || {}).id }
     });
   const [mutate] = useMutation(getLogout);
@@ -35,7 +42,7 @@ function App() {
       await mutate(null, {
         onSuccess: response => {
           setLogoutResult({ ok: true, message: response.data.message });
-          setAuthToken(null);
+          updateUserInfo(null);
           removeStorageItem("userInfo");
         },
         onError: error => {
@@ -47,7 +54,7 @@ function App() {
               });
             }
           }
-          setAuthToken(null);
+          updateUserInfo(null);
           removeStorageItem("userInfo");
         }
       });
@@ -63,7 +70,7 @@ function App() {
 
   return (
     <div>
-      {authToken ? (
+      {getAuthToken(userInfo) ? (
         <Box m={2}>
           <Button
             type="submit"
@@ -76,20 +83,20 @@ function App() {
         </Box>
       ) : null}
       <Router>
-        {!!authToken ? (
+        {!!getAuthToken(userInfo) ? (
           <Switch>
             <Route path="/dashboard">
-              <Dashboard />
+              <Dashboard userInfo={userInfo} />
             </Route>
             <Redirect to="/dashboard" />
           </Switch>
         ) : (
           <Switch>
             <Route path="/login">
-              <Login setAuthToken={setAuthToken} />
+              <Login setUserInfo={updateUserInfo} />
             </Route>
             <Route path="/signup">
-              <Signup setAuthToken={setAuthToken} />
+              <Signup setUserInfo={updateUserInfo} />
             </Route>
             <Redirect to="/login" />
           </Switch>

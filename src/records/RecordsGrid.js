@@ -24,7 +24,6 @@ import compareDesc from "date-fns/compareDesc";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import { queryCache, useMutation, useQuery } from "react-query";
 import log from "loglevel";
-import { getStorageItemJson } from "storage/storage";
 import EmptyState from "EmptyState";
 import AddRecord from "records/AddRecord";
 import ReadonlyRecord from "records/ReadonlyRecord";
@@ -58,8 +57,8 @@ const calcTotalTime = (data = []) =>
 const calcRunningTime = startTime =>
   Math.floor((new Date().getTime() - startTime.getTime()) / 1000 / 60);
 
-const calcHoursPerDay = (data = []) =>
-  (data || []).reduce((acc, d) => {
+const calcHoursPerDay = (data = []) => 
+  data.reduce((acc, d) => {
     const day = format(d.startTime, "yyyy-MM-dd");
     let dayVal = acc[day] || 0;
     acc[day] = dayVal + (d.durationMinutes || calcRunningTime(d.startTime));
@@ -92,27 +91,40 @@ const fetchRecords = async (
     if (result.status >= 400) {
       return {
         error: { status: result.status, statusText: result.statusText },
-        data: []
+        records: []
       };
     } else {
-      return result.data.data
-        .map(d => ({
-          ...d,
-          startTime: parseISO(d.startTime), // DateTimePicker expects Date object
-          endTime: isValid(parseISO(d.endTime)) ? parseISO(d.endTime) : null
-        }))
-        .sort(recordSortFunction);
+      return {
+        records: result.data.data
+          .map(d => ({
+            ...d,
+            startTime: parseISO(d.startTime), // DateTimePicker expects Date object
+            endTime: isValid(parseISO(d.endTime)) ? parseISO(d.endTime) : null
+          }))
+          .sort(recordSortFunction)
+      };
     }
   } catch (err) {
-    log.error("fetchRecords caught error:", err);
-    return {
-      error: {
-        status: err.response.status,
-        statusText: `${err.response.statusText}  ${JSON.stringify(
-          err.response.data
-        )}`
-      }
-    };
+    log.error("fetchRecords caught error:", JSON.stringify(err));
+    if (err.response) {
+      return {
+        error: {
+          status: err.response.status,
+          statusText:
+            (err.response.data || {}).error.message || err.response.status
+        },
+        records: []
+      };
+    } else
+      return {
+        error: {
+          status: err.response.status,
+          statusText: `${err.response.statusText}  ${JSON.stringify(
+            err.response.data
+          )}`
+        },
+        records: []
+      };
   }
 };
 
@@ -151,9 +163,9 @@ const sortUniqData = data =>
 const RecordsGrid = React.forwardRef((props, ref) => {
   const classes = useStyles();
 
-  const authToken = ((getStorageItemJson("userInfo") || {}).authToken || {})
-    .token;
-  const userId = (getStorageItemJson("userInfo") || {}).id;
+  const userInfo = props.userInfo || {};
+  const authToken = (userInfo.authToken || {}).token;
+  const userId = userInfo.id;
 
   // "editing" state: row id to edit
   const [editRow, setEditRow] = React.useState();
@@ -190,18 +202,18 @@ const RecordsGrid = React.forwardRef((props, ref) => {
   React.useImperativeHandle(ref, () => ({
     toggle: toggleOn => {
       // programmatically start/stop active record, but make sure it's not being edited
-      if(!editRow && !addRow){
+      if (!editRow && !addRow) {
         if (activeRecord && !toggleOn) handleStop(activeRecord.id);
         else if (!activeRecord && toggleOn) handleStart();
       }
     },
     editLatest: _ => {
       let idToEdit;
-      if(activeRecord) idToEdit = activeRecord.id;
-      else if(data && data.length) idToEdit = data[0].id;
-      console.log('editLatest', idToEdit)
-      if(idToEdit) setEditRow(idToEdit);
-      if(noteRef) noteRef.current.focus();
+      if (activeRecord) idToEdit = activeRecord.id;
+      else if (data && data.records && data.records.length)
+        idToEdit = data.records[0].id;
+      if (idToEdit) setEditRow(idToEdit);
+      if (noteRef && noteRef.current) noteRef.current.focus();
     }
   }));
 
@@ -260,7 +272,7 @@ const RecordsGrid = React.forwardRef((props, ref) => {
     onSuccess: data => {
       if (data.error) return;
 
-      const recordsWithoutEndTime = data.filter(d => !d.endTime);
+      const recordsWithoutEndTime = data.records.filter(d => !d.endTime);
       if (recordsWithoutEndTime.length > 1)
         setGlobalError({
           message: "Warning",
@@ -272,16 +284,17 @@ const RecordsGrid = React.forwardRef((props, ref) => {
             }
           ]
         });
-      setTopActivities(sortUniqData(data));
+      setTopActivities(sortUniqData(data.records));
 
-      setHoursPerDay(calcHoursPerDay(data));
+      setHoursPerDay(calcHoursPerDay(data.records));
     }
   });
 
   React.useEffect(
     () => {
-      setTotalTime(calcTotalTime(data) + activeRecordTime);
-      setHoursPerDay(calcHoursPerDay(data));
+      if (!data || !data.records) return;
+      setTotalTime(calcTotalTime(data.records) + activeRecordTime);
+      setHoursPerDay(calcHoursPerDay(data.records));
     },
     [data, activeRecordTime]
   );
@@ -294,7 +307,9 @@ const RecordsGrid = React.forwardRef((props, ref) => {
 
   React.useEffect(
     () => {
-      const arec = Array.isArray(data) && data.find(d => !d.endTime);
+      if (!data || !data.records) return;
+      const arec =
+        Array.isArray(data.records) && data.records.find(d => !d.endTime);
       if (arec) {
         setActiveRecord(arec);
         updateActiveRecordDuration(arec);
@@ -316,48 +331,46 @@ const RecordsGrid = React.forwardRef((props, ref) => {
   // rolling back on error
   const [mutate] = useMutation(updateRecord, {
     onMutate: ({ row: newRow, method }) => {
-      const previousData = queryCache.getQueryData(recordsQueryKey);
+      const previousData = queryCache.getQueryData(recordsQueryKey).records;
       // optimistically change, add or delete in-memory records:
       switch (method) {
         case "PUT":
-          queryCache.setQueryData(
-            recordsQueryKey,
-            previousData.map(r => (r.id === newRow.id ? newRow : r))
-          );
+          queryCache.setQueryData(recordsQueryKey, {
+            records: previousData.map(r => (r.id === newRow.id ? newRow : r))
+          });
           break;
         case "POST":
-          queryCache.setQueryData(
-            recordsQueryKey,
-            previousData
+          queryCache.setQueryData(recordsQueryKey, {
+            records: previousData
               .concat({ ...newRow })
               .sort((a, b) => compareDesc(a.startTime, b.startTime))
-          );
+          });
           setAddRow(null);
           break;
         case "DELETE":
           setUndoRow(newRow);
-          queryCache.setQueryData(
-            recordsQueryKey,
-            previousData.filter(r => r.id !== newRow.id)
-          );
+          queryCache.setQueryData(recordsQueryKey, {
+            records: previousData.filter(r => r.id !== newRow.id)
+          });
           break;
         case "UNDO_DELETE":
           setUndoRow(null);
-          queryCache.setQueryData(
-            recordsQueryKey,
-            previousData
+          queryCache.setQueryData(recordsQueryKey, {
+            records: previousData
               .concat({ ...newRow })
               .sort((a, b) => compareDesc(a.startTime, b.startTime))
-          );
+          });
           break;
         default:
           log.warn("Unknown method", method);
       }
       setEditRow(null);
       setGlobalError(null);
-      return () => queryCache.setQueryData(recordsQueryKey, previousData); // the rollback function
+      return () =>
+        queryCache.setQueryData(recordsQueryKey, { records: previousData }); // the rollback function
     },
     onError: (err, { row, method }, rollback) => {
+      if (!err.response) return;
       const rqData = err.response.data; // react-query object
       let reasons = [];
       if (rqData.error.message) {
@@ -395,7 +408,7 @@ const RecordsGrid = React.forwardRef((props, ref) => {
     },
     onSuccess: ({ data: rqData }) => {
       // update current cached data with latest from server
-      const previousData = queryCache.getQueryData(recordsQueryKey);
+      const previousData = queryCache.getQueryData(recordsQueryKey).records;
       const newData = previousData
         .map(r => {
           // if a temporary ID was sent, server returns source-of-truth id and temp id in this format:
@@ -421,7 +434,7 @@ const RecordsGrid = React.forwardRef((props, ref) => {
         .sort(recordSortFunction);
       const newTopActivities = sortUniqData(newData);
       setTopActivities(sortUniqData(newTopActivities));
-      queryCache.setQueryData(recordsQueryKey, newData);
+      queryCache.setQueryData(recordsQueryKey, { records: newData });
     },
     onSettled: () => {
       queryCache.refetchQueries(recordsQueryKey);
@@ -481,7 +494,7 @@ const RecordsGrid = React.forwardRef((props, ref) => {
 
   /* User clicked "Stop current" button */
   const handleStop = async id => {
-    const row = data.find(d => d.id === id);
+    const row = data.records.find(d => d.id === id);
     if (row)
       await mutate({
         row: {
@@ -529,14 +542,17 @@ const RecordsGrid = React.forwardRef((props, ref) => {
   // values for current page:
   const firstIdx = Math.max(0, page - 1) * PAGE_SIZE;
   const lastIdx = page * PAGE_SIZE;
-  const pageData = Array.isArray(data) ? data.slice(firstIdx, lastIdx) : [];
+  const pageData =
+    data && Array.isArray(data.records)
+      ? data.records.slice(firstIdx, lastIdx)
+      : [];
 
   return (
     <Box mt={2}>
       {/* Empty state: no records found either because filter criteria are too
         strict or there are simply no records for user. 
         */}
-      {(!data || !data.length) && (
+      {data && (!data.records || !data.records.length) && (
         <EmptyState
           classes={classes}
           handleAddRecord={handleAddRecord}
@@ -657,14 +673,14 @@ const RecordsGrid = React.forwardRef((props, ref) => {
         })}
 
       {/* paging controls at bottom of page */}
-      {!!pageData.length && data.length > PAGE_SIZE && (
+      {!!pageData.length && data.records.length > PAGE_SIZE && (
         <>
           <Box mt={1}>
             <Divider variant="fullWidth" />
           </Box>
           <Box mt={2}>
             <Pagination
-              count={Math.ceil(data.length / PAGE_SIZE)}
+              count={Math.ceil(data.records.length / PAGE_SIZE)}
               showFirstButton
               showLastButton
               onChange={(e, p) => setPage(p)}
@@ -712,6 +728,10 @@ const RecordsGrid = React.forwardRef((props, ref) => {
     </Box>
   );
 });
+
+// apparently needed with memoized forwardRef, otherwise React dev tools shows
+// this component as "Anonymous":
+RecordsGrid.displayName = "RecordsGrid";
 
 // Memoize component to minimize rendering of complex Grid
 export default React.memo(RecordsGrid);
