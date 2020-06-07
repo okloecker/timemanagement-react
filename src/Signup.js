@@ -94,8 +94,6 @@ const Signup = props => {
                   setStatus({
                     signupSuccessMessage: rqData.message
                   });
-                  // props.setAuthToken(rqData.data.authToken.token);
-                  // storage.local.setItem("userInfo", JSON.stringify(rqData.data));
                   setGlobalError(null);
                 },
                 onError: error => {
