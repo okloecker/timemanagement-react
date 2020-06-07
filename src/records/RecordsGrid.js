@@ -197,15 +197,14 @@ const RecordsGrid = React.forwardRef((props, ref) => {
   // React ref to TextField "note" in EditableRecord so it can be focused
   const noteRef = React.useRef(null);
 
+  // React ref to FAB button "start/stop"
+  const startStopButtonRef = React.useRef(null);
+
   // Components rendering RecordsGrid can call their ref to call
   // "ref.current.toggle()" to start/stop an active record
   React.useImperativeHandle(ref, () => ({
     toggle: toggleOn => {
-      // programmatically start/stop active record, but make sure it's not being edited
-      if (!editRow && !addRow) {
-        if (activeRecord && !toggleOn) handleStop(activeRecord.id);
-        else if (!activeRecord && toggleOn) handleStart();
-      }
+      if(startStopButtonRef && startStopButtonRef.current)startStopButtonRef.current.click();
     },
     editLatest: _ => {
       let idToEdit;
@@ -594,6 +593,7 @@ const RecordsGrid = React.forwardRef((props, ref) => {
         }
         showStartButton={!activeRecord}
         topActivities={topActivities}
+        ref={startStopButtonRef}
       />
 
       {/* Pagination controls (if more data than fits on page 

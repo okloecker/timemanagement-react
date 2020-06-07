@@ -84,8 +84,8 @@ const AddControls = ({ handleSubmit, handleReset }) => (
   </Grid>
 );
 
-/* The start/stop button to add or stopa new record with time current when pressed */
-const StartStopButton = ({ onClick, showStartButton, topActivities = [] }) => {
+/* The start/stop button to add or stop a new record with time current when pressed */
+const StartStopButton = React.forwardRef(({ onClick, showStartButton, topActivities = [] }, ref) => {
   const classes = useStyles();
   const [pendingValue, setPendingValue] = React.useState();
   return (
@@ -101,8 +101,8 @@ const StartStopButton = ({ onClick, showStartButton, topActivities = [] }) => {
             fullWidth
             freeSolo
             options={topActivities}
-            getOptionLabel={option => option.note}
-            onSelect={e => setPendingValue(e.target.value)}
+            getOptionLabel={option => option.note || pendingValue}
+            onSelect={e => {console.log('val=',e.target.value);setPendingValue(e.target.value)}}
             defaultValue={topActivities[0]}
             renderInput={params => (
               <TextField {...params} label="Previous Notes" />
@@ -120,6 +120,7 @@ const StartStopButton = ({ onClick, showStartButton, topActivities = [] }) => {
             aria-label="edit"
             onClick={() => onClick(pendingValue)}
             size="large"
+            ref={ref}
           >
             {showStartButton ? <PlayArrow /> : <Check />}
           </Fab>
@@ -127,6 +128,6 @@ const StartStopButton = ({ onClick, showStartButton, topActivities = [] }) => {
       </div>
     </Grid>
   );
-};
+});
 
 export { AddControls, EditControls, StartEditControls, StartStopButton };
