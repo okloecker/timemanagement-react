@@ -1,46 +1,43 @@
-import React from "react";
-import { Formik } from "formik";
+import DateFnsUtils from "@date-io/date-fns";
 import {
   Box,
+  Button,
+  ButtonGroup,
   Grid,
-  Paper,
-  TextField,
   IconButton,
-  InputAdornment
+  InputAdornment,
+  Paper,
+  TextField
 } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import { Clear, Search } from "@material-ui/icons";
-import DateFnsUtils from "@date-io/date-fns";
-import isDate from "date-fns/isDate";
-import isValid from "date-fns/isValid";
-import startOfMonth from "date-fns/startOfMonth";
+import {
+  KeyboardDatePicker,
+  MuiPickersUtilsProvider
+} from "@material-ui/pickers";
+import endOfDay from "date-fns/endOfDay";
 import endOfMonth from "date-fns/endOfMonth";
+import endOfWeek from "date-fns/endOfWeek";
 import isBefore from "date-fns/isBefore";
+import isDate from "date-fns/isDate";
 import isEqual from "date-fns/isEqual";
+import isValid from "date-fns/isValid";
 import parseISO from "date-fns/parseISO";
 import startOfDay from "date-fns/startOfDay";
-import endOfDay from "date-fns/endOfDay";
-import { getStorageItem, setStorageItem } from "storage/storage";
-import {
-  MuiPickersUtilsProvider,
-  KeyboardDatePicker
-} from "@material-ui/pickers";
+import startOfMonth from "date-fns/startOfMonth";
+import startOfWeek from "date-fns/startOfWeek";
+import { Formik } from "formik";
+import React from "react";
 import RecordsGrid from "records/RecordsGrid";
+import { getStorageItem, setStorageItem } from "storage/storage";
 
 const DEBOUNCE_TIMEOUT_MS = 500;
 const DATE_FORMAT = "yyyy-MM-dd";
 
 const useStyles = makeStyles(theme => ({
-  root: {
-    flexGrow: 1
-  },
-  paper: {
-    height: 140,
-    width: 100
-  },
-  control: {
-    padding: theme.spacing(2)
-  }
+  root: { flexGrow: 1 },
+  paper: { height: 140, width: 100 },
+  control: { padding: theme.spacing(2) }
 }));
 
 const getInitialValues = _ => ({
@@ -74,6 +71,22 @@ const Dashboard = props => {
       setFieldValue(name, d);
       setStorageItem(name, d.toISOString());
       setFormValues({ ...formValues, [name]: d });
+    }
+  };
+
+  // atomically set both date1 and date2 at the same time
+  // doing it directly one after the other with handleDatesChange can lead to calls being lost
+  const handleDatesChange = (date1, date2, setFieldValue) => {
+    if (isValid(date1) && isValid(date2)) {
+      setFieldValue("selectedStartDate", date1);
+      setFieldValue("selectedEndDate", date2);
+      setStorageItem("selectedStartDate", date1.toISOString());
+      setStorageItem("selectedEndDate", date2.toISOString());
+      setFormValues({
+        ...formValues,
+        selectedStartDate: date1,
+        selectedEndDate: date2
+      });
     }
   };
 
@@ -113,6 +126,25 @@ const Dashboard = props => {
     [recordsGridRef]
   );
 
+  const handlePresetButtonClick = (interval, setFieldValue) => {
+    let date1 = startOfDay(new Date());
+    let date2 = endOfDay(date1);
+    switch (interval) {
+      case "month":
+        date1 = startOfMonth(new Date());
+        date2 = endOfMonth(date1);
+        break;
+      case "week":
+        date1 = startOfWeek(new Date(), { weekStartsOn: 1 });
+        date2 = endOfWeek(date1, { weekStartsOn: 1 });
+        break;
+      case "today":
+      default:
+      // same as today
+    }
+    handleDatesChange(date1, date2, setFieldValue);
+  };
+
   return (
     <Box m={2}>
       {/* add some margin to component */}
@@ -139,6 +171,36 @@ const Dashboard = props => {
             >
               {({ values, errors, handleChange, setFieldValue }) => (
                 <MuiPickersUtilsProvider utils={DateFnsUtils}>
+                  <Grid container justify="center" spacing={0}>
+                    <Box p={1}>
+                      <ButtonGroup
+                        color="primary"
+                        aria-label="preset date intervals"
+                      >
+                        <Button
+                          onClick={_ =>
+                            handlePresetButtonClick("month", setFieldValue)
+                          }
+                        >
+                          This Month
+                        </Button>
+                        <Button
+                          onClick={_ =>
+                            handlePresetButtonClick("week", setFieldValue)
+                          }
+                        >
+                          This Week
+                        </Button>
+                        <Button
+                          onClick={_ =>
+                            handlePresetButtonClick("today", setFieldValue)
+                          }
+                        >
+                          Today
+                        </Button>
+                      </ButtonGroup>
+                    </Box>
+                  </Grid>
                   <Grid container justify="center" spacing={0}>
                     <Box mr={1} minWidth={170} width={"10%"}>
                       <Grid item>
