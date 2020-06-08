@@ -129,10 +129,7 @@ const fetchRecords = async (
     } else
       return {
         error: {
-          status: err.response.status,
-          statusText: `${err.response.statusText}  ${JSON.stringify(
-            err.response.data
-          )}`
+          statusText: err.message
         },
         records: []
       };
