@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Box,
+  Chip,
   Divider,
   Button,
   Fab,
@@ -38,6 +39,7 @@ const DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm";
 const DATE_FORMAT = "yyyy-MM-dd";
 
 const recordSortFunction = (a, b) => compareDesc(a.startTime, b.startTime);
+const tagRegexp = /.*\[(?<tag>.+?)\].*/;
 
 const useStyles = makeStyles({
   root: { minWidth: 275, color: "#363737" }, // https://xkcd.com/color/rgb/ dark grey
@@ -45,7 +47,15 @@ const useStyles = makeStyles({
   controls: { paddingTop: "16px", paddingBottom: "16px" },
   activeRecord: { backgroundColor: "#e9ffe9" },
   pagination: { marginTop: "16px", display: "inline-block" },
-  fab: { paddingLeft: "8px" }
+  fab: { paddingLeft: "8px" },
+  tags: {
+    display: "flex",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    "& > *": {
+      margin: 2
+    }
+  }
 });
 
 const calcTotalTime = (data = []) =>
@@ -58,7 +68,7 @@ const calcTotalTime = (data = []) =>
 const calcRunningTime = startTime =>
   Math.floor((new Date().getTime() - startTime.getTime()) / 1000 / 60);
 
-const calcHoursPerDay = (data = []) => 
+const calcHoursPerDay = (data = []) =>
   data.reduce((acc, d) => {
     const day = format(d.startTime, DATE_FORMAT);
     let dayVal = acc[day] || 0;
@@ -156,6 +166,13 @@ const sortUniqData = data =>
       []
     );
 
+// returns an array which only contains unique elements
+const uniqArr = data =>
+  [...data].reduce(
+    (acc, d) => (acc.find(a => a === d) ? acc : acc.concat(d)),
+    []
+  );
+
 /*
  * Component to show time records.
  * Responsive layout achieved by using Grid (not Table): on narrow screens, the
@@ -194,6 +211,7 @@ const RecordsGrid = React.forwardRef((props, ref) => {
   const [activeRecordTime, setActiveRecordTime] = React.useState(0);
 
   const [topActivities, setTopActivities] = React.useState();
+  const [tags, setTags] = React.useState([]);
 
   // React ref to TextField "note" in EditableRecord so it can be focused
   const noteRef = React.useRef(null);
@@ -205,7 +223,8 @@ const RecordsGrid = React.forwardRef((props, ref) => {
   // "ref.current.toggle()" to start/stop an active record
   React.useImperativeHandle(ref, () => ({
     toggle: toggleOn => {
-      if(startStopButtonRef && startStopButtonRef.current)startStopButtonRef.current.click();
+      if (startStopButtonRef && startStopButtonRef.current)
+        startStopButtonRef.current.click();
     },
     editLatest: _ => {
       let idToEdit;
@@ -284,9 +303,16 @@ const RecordsGrid = React.forwardRef((props, ref) => {
             }
           ]
         });
-      setTopActivities(sortUniqData(data.records));
+      const sortedUniqueData = sortUniqData(data.records);
+      setTopActivities(sortedUniqueData);
 
       setHoursPerDay(calcHoursPerDay(data.records));
+
+      setTags(
+        uniqArr(
+          sortedUniqueData.map(d => (d.note || "").replace(tagRegexp, "$<tag>"))
+        )
+      );
     }
   });
 
@@ -584,6 +610,14 @@ const RecordsGrid = React.forwardRef((props, ref) => {
       {/* Error alert from data */}
       {(data || {}).error && (
         <Alert severity="error">{data.error.statusText}</Alert>
+      )}
+
+      {!!tags.length && (
+        <div className={classes.tags}>
+          {tags.map(t => (
+            <Chip key={t} variant="outlined" label={t} />
+          ))}
+        </div>
       )}
 
       <StartStopButton
