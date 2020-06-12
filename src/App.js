@@ -1,4 +1,4 @@
-import { Box, Button, Snackbar } from "@material-ui/core";
+import { Snackbar } from "@material-ui/core";
 import axios from "axios";
 import Dashboard from "Dashboard";
 import Login from "Login";
@@ -12,28 +12,36 @@ import {
 } from "react-router-dom";
 import log from "loglevel";
 import Signup from "Signup";
-import { getStorageItemJson, setStorageItemJson, removeStorageItem } from "storage/storage";
+import { MoreMenu } from "MoreMenu";
+import {
+  getStorageItemJson,
+  setStorageItemJson,
+  removeStorageItem
+} from "storage/storage";
 
-const getAuthToken = userInfo => ((userInfo||{}).authToken||{}).token;
+const getAuthToken = userInfo => ((userInfo || {}).authToken || {}).token;
 
 /*
  * Entry point for app, containing the routes and logout handling.
  */
 function App() {
   const [userInfo, setUserInfo] = React.useState(
-    (getStorageItemJson("userInfo") || {})
+    getStorageItemJson("userInfo") || {}
   );
   const [logoutResult, setLogoutResult] = React.useState({});
 
   const updateUserInfo = userInfo => {
     setStorageItemJson("userInfo", userInfo);
     setUserInfo(userInfo);
-  }
+  };
 
   const getLogout = () =>
     axios("/api/logout", {
       method: "POST",
-      headers: { "Content-Type": "application/json", AuthToken: getAuthToken(userInfo) },
+      headers: {
+        "Content-Type": "application/json",
+        AuthToken: getAuthToken(userInfo)
+      },
       data: { userId: (getStorageItemJson("userInfo") || {}).id }
     });
   const [mutate] = useMutation(getLogout);
@@ -70,18 +78,9 @@ function App() {
 
   return (
     <div>
-      {getAuthToken(userInfo) ? (
-        <Box m={2}>
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            onClick={handleLogout}
-          >
-            Log out
-          </Button>
-        </Box>
-      ) : null}
+      {getAuthToken(userInfo) &&
+      <MoreMenu onLogout={handleLogout} />
+      }
       <Router>
         {!!getAuthToken(userInfo) ? (
           <Switch>
