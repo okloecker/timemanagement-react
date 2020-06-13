@@ -21,6 +21,7 @@ import formatISO from "date-fns/formatISO";
 import isDate from "date-fns/isDate";
 import isValid from "date-fns/isValid";
 import parseISO from "date-fns/parseISO";
+import compareAsc from "date-fns/compareAsc";
 import compareDesc from "date-fns/compareDesc";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import { queryCache, useMutation, useQuery } from "react-query";
@@ -30,7 +31,7 @@ import AddRecord from "records/AddRecord";
 import ReadonlyRecord from "records/ReadonlyRecord";
 import EditableRecord from "records/EditableRecord";
 import { StartStopButton } from "./EditControls";
-import { minToArr } from "helpers/time";
+import { minToArr, minToHHMM } from "helpers/time";
 import { useInterval } from "helpers/useInterval";
 import TimeDuration from "TimeDuration";
 
@@ -75,6 +76,35 @@ const calcHoursPerDay = (data = []) =>
     acc[day] = dayVal + (d.durationMinutes || calcRunningTime(d.startTime));
     return acc;
   }, {});
+
+// creates object of keys "day" and values "{minutes:0, notes:[]}" 
+// where notes are unique
+const dayAndTotals = (data = []) =>
+  [...data]
+    .sort((a, b) => compareAsc(a.startTime, b.startTime))
+    .reduce((acc, d) => {
+      const day = format(d.startTime, "dd.MM.yyyy");
+      let totals = acc[day] || { minutes: 0, notes: [] };
+      acc[day] = {
+        minutes:
+          totals.minutes + (d.durationMinutes || calcRunningTime(d.startTime)),
+        notes: totals.notes
+          .filter(n => !totals.notes.includes(d.note))
+          .concat(d.note)
+      };
+      return acc;
+    }, {});
+
+const createReportData = ( records, filterString ) => {
+  const hoursPerDay = dayAndTotals(
+    records.filter(r => r.note.includes(`[${filterString}]`))
+  );
+  let rows = [];
+  for (const day in hoursPerDay) {
+    rows.push({ day, infos: hoursPerDay[day] });
+  }
+  return rows;
+};
 
 /* Async backend call to fetch data */
 const fetchRecords = async (
@@ -209,6 +239,7 @@ const RecordsGrid = React.forwardRef((props, ref) => {
 
   const [topActivities, setTopActivities] = React.useState();
   const [tags, setTags] = React.useState([]);
+  const [clickedChip, setClickedChip] = React.useState();
 
   // React ref to TextField "note" in EditableRecord so it can be focused
   const noteRef = React.useRef(null);
@@ -565,10 +596,21 @@ const RecordsGrid = React.forwardRef((props, ref) => {
   // values for current page:
   const firstIdx = Math.max(0, page - 1) * PAGE_SIZE;
   const lastIdx = page * PAGE_SIZE;
-  const pageData =
-    data && Array.isArray(data.records)
-      ? data.records.slice(firstIdx, lastIdx)
-      : [];
+  let pageData = [];
+
+  if (clickedChip) {
+    // report mode
+    pageData =
+      data && Array.isArray(data.records)
+        ? createReportData(data.records, clickedChip).slice(firstIdx, lastIdx)
+        : [];
+  } else {
+    // normal records mode
+    pageData =
+      data && Array.isArray(data.records)
+        ? data.records.slice(firstIdx, lastIdx)
+        : [];
+  }
 
   return (
     <Box mt={2}>
@@ -612,7 +654,15 @@ const RecordsGrid = React.forwardRef((props, ref) => {
       {!!tags.length && (
         <div className={classes.tags}>
           {tags.map(t => (
-            <Chip key={t} variant="outlined" label={t} />
+            <Chip
+              key={t}
+              variant="outlined"
+              label={t}
+              color={clickedChip === t ? "primary" : undefined}
+              onClick={() =>
+                setClickedChip(prev => (prev ? (prev === t ? null : t) : t))
+              }
+            />
           ))}
         </div>
       )}
@@ -663,7 +713,8 @@ const RecordsGrid = React.forwardRef((props, ref) => {
       )}
 
       {/* There is some data to display */}
-      {!!pageData.length &&
+      {!clickedChip &&
+        !!pageData.length &&
         pageData.map((row, i, arr) => {
           return row.id !== editRow ? (
             <div
@@ -703,6 +754,16 @@ const RecordsGrid = React.forwardRef((props, ref) => {
             />
           );
         })}
+
+      {clickedChip &&
+        !!pageData.length &&
+        pageData.map((row, i, arr) => (
+          <div key={row.day}>
+            {`${row.day} ; ; ${minToHHMM(
+              row.infos.minutes
+            )} ; ; ${row.infos.notes.join(" | ")}`}
+          </div>
+        ))}
 
       {/* paging controls at bottom of page */}
       {!!pageData.length && data.records.length > PAGE_SIZE && (
