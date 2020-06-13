@@ -10,6 +10,7 @@ import { StartEditControls } from "./EditControls";
 
 const DATE_FORMAT = "yyyy-MM-dd";
 const HUMAN_DATE_FORMAT = "dd LLL yyyy";
+const EM_DASH = "—";
 
 const useStyles = makeStyles(theme => ({
   duration: {
@@ -58,7 +59,7 @@ const ReadonlyRecord = ({
                   hoursPerDay[format(startTime, DATE_FORMAT)] || 0,
                   0
                 )}
-                fallback="—"
+                fallback={EM_DASH}
               />
             </Typography>
           </>
@@ -80,7 +81,7 @@ const ReadonlyRecord = ({
             isValid(endTime) ? (
               <FormatHHMM d={endTime} classes={classes} />
             ) : (
-              "—"
+              EM_DASH
             )
           ) : null}
         </Box>
@@ -89,7 +90,7 @@ const ReadonlyRecord = ({
       {/* duration field */}
       <Grid item xs={4} sm={4} md={1}>
         <Box m={1} className={classes.duration}>
-          <TimeDuration {...minToArr(durationMinutes)} fallback="—" />
+          <TimeDuration {...minToArr(durationMinutes)} fallback={EM_DASH} />
         </Box>
       </Grid>
 
