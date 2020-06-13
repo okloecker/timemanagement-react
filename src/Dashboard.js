@@ -3,6 +3,9 @@ import {
   Box,
   Button,
   ButtonGroup,
+  ExpansionPanel,
+  ExpansionPanelSummary,
+  ExpansionPanelDetails,
   Grid,
   IconButton,
   InputAdornment,
@@ -10,7 +13,7 @@ import {
   TextField
 } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
-import { Clear, Search } from "@material-ui/icons";
+import { Clear, ExpandMore, Search } from "@material-ui/icons";
 import {
   KeyboardDatePicker,
   MuiPickersUtilsProvider
@@ -22,6 +25,7 @@ import isBefore from "date-fns/isBefore";
 import isDate from "date-fns/isDate";
 import isEqual from "date-fns/isEqual";
 import isValid from "date-fns/isValid";
+import format from "date-fns/format";
 import parseISO from "date-fns/parseISO";
 import startOfDay from "date-fns/startOfDay";
 import startOfMonth from "date-fns/startOfMonth";
@@ -30,9 +34,11 @@ import { Formik } from "formik";
 import React from "react";
 import RecordsGrid from "records/RecordsGrid";
 import { getStorageItem, setStorageItem } from "storage/storage";
+import { elliptic } from "helpers/strings";
 
 const DEBOUNCE_TIMEOUT_MS = 500;
 const DATE_FORMAT = "yyyy-MM-dd";
+const EM_DASH = "—";
 
 const useStyles = makeStyles(theme => ({
   root: { flexGrow: 1 },
@@ -151,157 +157,184 @@ const Dashboard = props => {
       <Grid container className={classes.root} justify="center">
         <Grid item xs={12} lg={11} xl={10}>
           <Paper className={classes.control} elevation={2}>
-            <Formik
-              initialValues={getInitialValues()}
-              validate={values => {
-                const errors = {};
-                if (
-                  isDate(values.selectedStartDate) &&
-                  isDate(values.selectedEndDate) &&
-                  !isBefore(values.selectedStartDate, values.selectedEndDate) &&
-                  !isEqual(values.selectedStartDate, values.selectedEndDate)
-                ) {
-                  errors.selectedEndDate =
-                    "End date must be at or after start date.";
-                }
-                if (Object.keys(errors === 0))
-                  setStorageItem("searchText", values.searchText);
-                return errors;
-              }}
-            >
-              {({ values, errors, handleChange, setFieldValue }) => (
-                <MuiPickersUtilsProvider utils={DateFnsUtils}>
-                  <Grid container justify="center" spacing={0}>
-                    <Box p={1}>
-                      <ButtonGroup
-                        color="primary"
-                        aria-label="preset date intervals"
-                      >
-                        <Button
-                          onClick={_ =>
-                            handlePresetButtonClick("month", setFieldValue)
-                          }
-                        >
-                          This Month
-                        </Button>
-                        <Button
-                          onClick={_ =>
-                            handlePresetButtonClick("week", setFieldValue)
-                          }
-                        >
-                          This Week
-                        </Button>
-                        <Button
-                          onClick={_ =>
-                            handlePresetButtonClick("today", setFieldValue)
-                          }
-                        >
-                          Today
-                        </Button>
-                      </ButtonGroup>
-                    </Box>
-                  </Grid>
-                  <Grid container justify="center" spacing={0}>
-                    <Box mr={1} minWidth={170} width={"10%"}>
-                      <Grid item>
-                        <KeyboardDatePicker
-                          id="date-picker-dialog-start"
-                          margin="dense"
-                          label="Start Date"
-                          format={DATE_FORMAT}
-                          showTodayButton
-                          value={values.selectedStartDate}
-                          onChange={d =>
-                            handleDateChange(
-                              "selectedStartDate",
-                              startOfDay(d),
-                              setFieldValue
-                            )
-                          }
-                          error={!!errors.selectedStartDate}
-                          helperText={errors.selectedStartDate}
-                          KeyboardButtonProps={{
-                            "aria-label": "change start date"
-                          }}
-                        />
-                      </Grid>
-                    </Box>
-                    <Box mr={1} minWidth={170} width={"10%"}>
-                      <Grid item>
-                        <KeyboardDatePicker
-                          id="date-picker-dialog-end"
-                          margin="dense"
-                          label="End Date"
-                          format={DATE_FORMAT}
-                          showTodayButton
-                          value={values.selectedEndDate}
-                          onChange={d =>
-                            handleDateChange(
-                              "selectedEndDate",
-                              endOfDay(d),
-                              setFieldValue
-                            )
-                          }
-                          error={!!errors.selectedEndDate}
-                          helperText={errors.selectedEndDate}
-                          KeyboardButtonProps={{
-                            "aria-label": "change end date"
-                          }}
-                        />
-                      </Grid>
-                    </Box>
-                    <Box m={0}>
-                      <Grid item>
-                        <TextField
-                          name="searchText"
-                          margin="dense"
-                          label="Search"
-                          id="searchbox"
-                          value={values.searchText}
-                          onChange={e =>
-                            debounceSearchTextChange(
-                              e.target.value,
-                              setFieldValue
-                            )
-                          }
-                          inputProps={{ id: "searchText" }}
-                          InputProps={{
-                            endAdornment: (
-                              <InputAdornment position="end">
-                                {values.searchText && (
-                                  <IconButton
-                                    aria-label="clear search"
-                                    onClick={e =>
-                                      debounceSearchTextChange(
-                                        e.target.value,
-                                        setFieldValue
-                                      )
-                                    }
-                                    onMouseDown={handleMouseDownSearch}
-                                  >
-                                    <Clear />
-                                  </IconButton>
-                                )}
-                                <IconButton aria-label="search" disabled>
-                                  <Search />
-                                </IconButton>
-                              </InputAdornment>
-                            )
-                          }}
-                        />
-                      </Grid>
-                    </Box>
-                  </Grid>
-                  <RecordsGrid
-                    startDate={formValues.selectedStartDate}
-                    endDate={formValues.selectedEndDate}
-                    searchText={(formValues.searchText || "").trim()}
-                    ref={recordsGridRef}
-                    userInfo={props.userInfo}
-                  />
-                </MuiPickersUtilsProvider>
-              )}
-            </Formik>
+            <ExpansionPanel>
+              <ExpansionPanelSummary
+                expandIcon={<ExpandMore />}
+                aria-controls="panel1a-content"
+                id="panel1a-header"
+              >
+                Filter{" "}
+                {`${format(
+                  formValues.selectedStartDate,
+                  DATE_FORMAT
+                )} ${EM_DASH} ${format(
+                  formValues.selectedEndDate,
+                  DATE_FORMAT
+                )}  ${EM_DASH} ${elliptic(formValues.searchText, 30)}`}
+              </ExpansionPanelSummary>
+              <ExpansionPanelDetails>
+                <Formik
+                  initialValues={getInitialValues()}
+                  validate={values => {
+                    const errors = {};
+                    if (
+                      isDate(values.selectedStartDate) &&
+                      isDate(values.selectedEndDate) &&
+                      !isBefore(
+                        values.selectedStartDate,
+                        values.selectedEndDate
+                      ) &&
+                      !isEqual(values.selectedStartDate, values.selectedEndDate)
+                    ) {
+                      errors.selectedEndDate =
+                        "End date must be at or after start date.";
+                    }
+                    if (Object.keys(errors === 0))
+                      setStorageItem("searchText", values.searchText);
+                    return errors;
+                  }}
+                >
+                  {({ values, errors, handleChange, setFieldValue }) => (
+                    <Grid container justify="center" spacing={0}>
+                      <MuiPickersUtilsProvider utils={DateFnsUtils}>
+                        <Grid container justify="center" spacing={0}>
+                          <Box p={1}>
+                            <ButtonGroup aria-label="preset date intervals">
+                              <Button
+                                onClick={_ =>
+                                  handlePresetButtonClick(
+                                    "month",
+                                    setFieldValue
+                                  )
+                                }
+                              >
+                                This Month
+                              </Button>
+                              <Button
+                                onClick={_ =>
+                                  handlePresetButtonClick("week", setFieldValue)
+                                }
+                              >
+                                This Week
+                              </Button>
+                              <Button
+                                onClick={_ =>
+                                  handlePresetButtonClick(
+                                    "today",
+                                    setFieldValue
+                                  )
+                                }
+                              >
+                                Today
+                              </Button>
+                            </ButtonGroup>
+                          </Box>
+                        </Grid>
+                        <Grid container justify="center" spacing={0}>
+                          <Box mr={1} minWidth={170} width={"10%"}>
+                            <Grid item>
+                              <KeyboardDatePicker
+                                id="date-picker-dialog-start"
+                                margin="dense"
+                                label="Start Date"
+                                format={DATE_FORMAT}
+                                showTodayButton
+                                value={values.selectedStartDate}
+                                onChange={d =>
+                                  handleDateChange(
+                                    "selectedStartDate",
+                                    startOfDay(d),
+                                    setFieldValue
+                                  )
+                                }
+                                error={!!errors.selectedStartDate}
+                                helperText={errors.selectedStartDate}
+                                KeyboardButtonProps={{
+                                  "aria-label": "change start date"
+                                }}
+                              />
+                            </Grid>
+                          </Box>
+                          <Box mr={1} minWidth={170} width={"10%"}>
+                            <Grid item>
+                              <KeyboardDatePicker
+                                id="date-picker-dialog-end"
+                                margin="dense"
+                                label="End Date"
+                                format={DATE_FORMAT}
+                                showTodayButton
+                                value={values.selectedEndDate}
+                                onChange={d =>
+                                  handleDateChange(
+                                    "selectedEndDate",
+                                    endOfDay(d),
+                                    setFieldValue
+                                  )
+                                }
+                                error={!!errors.selectedEndDate}
+                                helperText={errors.selectedEndDate}
+                                KeyboardButtonProps={{
+                                  "aria-label": "change end date"
+                                }}
+                              />
+                            </Grid>
+                          </Box>
+                          <Box m={0}>
+                            <Grid item>
+                              <TextField
+                                name="searchText"
+                                margin="dense"
+                                label="Search"
+                                id="searchbox"
+                                value={values.searchText}
+                                onChange={e =>
+                                  debounceSearchTextChange(
+                                    e.target.value,
+                                    setFieldValue
+                                  )
+                                }
+                                inputProps={{ id: "searchText" }}
+                                InputProps={{
+                                  endAdornment: (
+                                    <InputAdornment position="end">
+                                      {values.searchText && (
+                                        <IconButton
+                                          aria-label="clear search"
+                                          onClick={e =>
+                                            debounceSearchTextChange(
+                                              e.target.value,
+                                              setFieldValue
+                                            )
+                                          }
+                                          onMouseDown={handleMouseDownSearch}
+                                        >
+                                          <Clear />
+                                        </IconButton>
+                                      )}
+                                      <IconButton aria-label="search" disabled>
+                                        <Search />
+                                      </IconButton>
+                                    </InputAdornment>
+                                  )
+                                }}
+                              />
+                            </Grid>
+                          </Box>
+                        </Grid>
+                      </MuiPickersUtilsProvider>
+                    </Grid>
+                  )}
+                </Formik>
+              </ExpansionPanelDetails>
+            </ExpansionPanel>
+
+            <RecordsGrid
+              startDate={formValues.selectedStartDate}
+              endDate={formValues.selectedEndDate}
+              searchText={(formValues.searchText || "").trim()}
+              ref={recordsGridRef}
+              userInfo={props.userInfo}
+            />
           </Paper>
         </Grid>
       </Grid>
