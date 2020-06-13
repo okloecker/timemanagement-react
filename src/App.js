@@ -78,10 +78,8 @@ function App() {
 
   return (
     <div>
-      {getAuthToken(userInfo) &&
-      <MoreMenu onLogout={handleLogout} />
-      }
       <Router>
+        {getAuthToken(userInfo) && <MoreMenu onLogout={handleLogout} />}
         {!!getAuthToken(userInfo) ? (
           <Switch>
             <Route path="/dashboard">
