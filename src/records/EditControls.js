@@ -102,7 +102,7 @@ const StartStopButton = React.forwardRef(({ onClick, showStartButton, topActivit
             freeSolo
             options={topActivities}
             getOptionLabel={option => option.note || pendingValue}
-            onSelect={e => {console.log('val=',e.target.value);setPendingValue(e.target.value)}}
+            onSelect={e => setPendingValue(e.target.value)}
             defaultValue={topActivities[0]}
             renderInput={params => (
               <TextField {...params} label="Previous Notes" />
