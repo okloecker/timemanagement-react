@@ -77,7 +77,7 @@ const calcHoursPerDay = (data = []) =>
     return acc;
   }, {});
 
-// creates object of keys "day" and values "{minutes:0, notes:[]}" 
+// creates object of keys "day" and values "{minutes:0, notes:[]}"
 // where notes are unique
 const dayAndTotals = (data = []) =>
   [...data]
@@ -95,7 +95,7 @@ const dayAndTotals = (data = []) =>
       return acc;
     }, {});
 
-const createReportData = ( records, filterString ) => {
+const createReportData = (records, filterString) => {
   const hoursPerDay = dayAndTotals(
     records.filter(r => r.note.includes(`[${filterString}]`))
   );
@@ -251,7 +251,11 @@ const RecordsGrid = React.forwardRef((props, ref) => {
   // "ref.current.toggle()" to start/stop an active record
   React.useImperativeHandle(ref, () => ({
     toggle: toggleOn => {
-      if (startStopButtonRef && startStopButtonRef.current)
+      if (
+        startStopButtonRef &&
+        startStopButtonRef.current &&
+        !!activeRecord !== toggleOn
+      )
         startStopButtonRef.current.click();
     },
     editLatest: _ => {
@@ -338,7 +342,12 @@ const RecordsGrid = React.forwardRef((props, ref) => {
 
       setTags(
         uniqArr(
-          sortedUniqueData.map(d => (d.note || "").replace(tagRegexp, "$<tag>"))
+          sortedUniqueData
+            .map(d => {
+              const tag = (d.note || "").match(tagRegexp);
+              return tag ? tag[1] : null;
+            })
+            .filter(tag => tag)
         )
       );
     }
