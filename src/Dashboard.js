@@ -170,7 +170,7 @@ const Dashboard = props => {
                 )} ${EM_DASH} ${format(
                   formValues.selectedEndDate,
                   DATE_FORMAT
-                )}  ${EM_DASH} ${elliptic(formValues.searchText, 30)}`}
+                )}  : ${elliptic(formValues.searchText, 30)}`}
               </ExpansionPanelSummary>
               <ExpansionPanelDetails>
                 <Formik
@@ -279,13 +279,14 @@ const Dashboard = props => {
                               />
                             </Grid>
                           </Box>
-                          <Box m={0}>
+                          <Box m={0} width={"70%"}>
                             <Grid item>
                               <TextField
                                 name="searchText"
                                 margin="dense"
                                 label="Search"
                                 id="searchbox"
+                                fullWidth
                                 value={values.searchText}
                                 onChange={e =>
                                   debounceSearchTextChange(

@@ -46,8 +46,8 @@ const EditControls = ({
   setEditing
 }) => (
   <>
-    <Tooltip title="Edit" aria-label="edit">
-      <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
+    <Tooltip title="Save" aria-label="save">
+      <IconButton aria-label="save" size="small" onClick={handleSubmit}>
         <Done />
       </IconButton>
     </Tooltip>
@@ -71,8 +71,8 @@ const EditControls = ({
 /* Done/Close buttons in "add" form */
 const AddControls = ({ handleSubmit, handleReset }) => (
   <Grid item xs={12} md={1}>
-    <Tooltip title="Edit" aria-label="edit">
-      <IconButton aria-label="edit" size="small" onClick={handleSubmit}>
+    <Tooltip title="Save" aria-label="save">
+      <IconButton aria-label="save" size="small" onClick={handleSubmit}>
         <Done />
       </IconButton>
     </Tooltip>

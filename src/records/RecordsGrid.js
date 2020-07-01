@@ -23,17 +23,16 @@ import isValid from "date-fns/isValid";
 import parseISO from "date-fns/parseISO";
 import compareAsc from "date-fns/compareAsc";
 import compareDesc from "date-fns/compareDesc";
-import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import { queryCache, useMutation, useQuery } from "react-query";
 import log from "loglevel";
 import EmptyState from "EmptyState";
-import AddRecord from "records/AddRecord";
-import ReadonlyRecord from "records/ReadonlyRecord";
-import EditableRecord from "records/EditableRecord";
+import AddRecord from "./AddRecord";
 import { StartStopButton } from "./EditControls";
-import { minToArr, minToHHMM } from "helpers/time";
+import { minToArr } from "helpers/time";
 import { useInterval } from "helpers/useInterval";
 import TimeDuration from "TimeDuration";
+import { Records } from "./Records";
+import { Reports } from "./Reports";
 
 const PAGE_SIZE = 30;
 const DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm";
@@ -46,7 +45,6 @@ const useStyles = makeStyles({
   root: { minWidth: 275, color: "#363737" }, // https://xkcd.com/color/rgb/ dark grey
   title: { fontSize: 20, textAlign: "center" },
   controls: { paddingTop: "16px", paddingBottom: "16px" },
-  activeRecord: { backgroundColor: "#e9ffe9" },
   pagination: { marginTop: "16px", display: "inline-block" },
   fab: { paddingLeft: "8px" },
   tags: {
@@ -89,7 +87,7 @@ const dayAndTotals = (data = []) =>
         minutes:
           totals.minutes + (d.durationMinutes || calcRunningTime(d.startTime)),
         notes: totals.notes
-          .filter(n => !totals.notes.includes(d.note))
+          .filter(n => n !== d.note)
           .concat(d.note)
       };
       return acc;
@@ -722,57 +720,23 @@ const RecordsGrid = React.forwardRef((props, ref) => {
       )}
 
       {/* There is some data to display */}
-      {!clickedChip &&
-        !!pageData.length &&
-        pageData.map((row, i, arr) => {
-          return row.id !== editRow ? (
-            <div
-              key={row.id /*might be assigned during optimistic update*/}
-              className={row.endTime ? "" : classes.activeRecord}
-            >
-              <ReadonlyRecord
-                startTime={row.startTime}
-                endTime={row.endTime}
-                durationMinutes={row.durationMinutes || activeRecordTime}
-                note={row.note}
-                id={row.id}
-                setEditing={setEditRow}
-                newDay={
-                  i === 0 ||
-                  !!differenceInCalendarDays(
-                    row.startTime,
-                    arr[Math.max(0, i - 1)].startTime
-                  )
-                }
-                dateTimeFormat={DATE_TIME_FORMAT}
-                setStop={!row.endTime ? handleStop : null}
-                hoursPerDay={hoursPerDay}
-              />
-            </div>
-          ) : (
-            <EditableRecord
-              key={row.id /*might be assigned during optimistic update*/}
-              row={row}
-              setEditing={setEditRow}
-              handleRecordDelete={handleRecordDelete}
-              onUpdate={v => {
-                if (v !== row.startTime) handleRowUpdate({ row, newRow: v });
-              }}
-              dateTimeFormat={DATE_TIME_FORMAT}
-              noteRef={noteRef}
-            />
-          );
-        })}
+      {!clickedChip && !!pageData.length && (
+        <Records
+          editRow={editRow}
+          data={pageData}
+          setEditRow={setEditRow}
+          activeRecordTime={activeRecordTime}
+          dateTimeFormat={DATE_TIME_FORMAT}
+          noteRef={noteRef}
+          handleRecordDelete={handleRecordDelete}
+          handleRowUpdate={handleRowUpdate}
+          handleStop={handleStop}
+          hoursPerDay={hoursPerDay}
+        />
+      )}
 
-      {clickedChip &&
-        !!pageData.length &&
-        pageData.map((row, i, arr) => (
-          <div key={row.day}>
-            {`${row.day} ; ; ${minToHHMM(
-              row.infos.minutes
-            )} ; ; ${row.infos.notes.join(" | ")}`}
-          </div>
-        ))}
+      {/* If one of the chips was clicked, show Report data instead */}
+      {clickedChip && !!pageData.length && <Reports data={pageData} />}
 
       {/* paging controls at bottom of page */}
       {!!pageData.length && data.records.length > PAGE_SIZE && (

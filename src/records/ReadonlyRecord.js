@@ -45,7 +45,6 @@ const ReadonlyRecord = ({
       <Grid item xs={12}>
         {newDay && (
           <>
-            <Divider />
             <Typography
               className={classes.dividerFullWidth}
               color="textSecondary"
