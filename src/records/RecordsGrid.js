@@ -703,7 +703,7 @@ const RecordsGrid = React.forwardRef((props, ref) => {
           {!!pageData.length && (
             <>
               &emsp; Total time for filter:&ensp;
-              <TimeDuration {...minToArr(totalTime)} />
+              <TimeDuration {...minToArr(totalTime)} bigger />
             </>
           )}
         </div>
