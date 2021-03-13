@@ -12,13 +12,13 @@ const TimeDuration = ({ h, m, bigger, fallback }) => {
     <>
       {!!h && (
         <>
-          <span className={!!bigger && classes.time}>{h}</span>
+          <span className={!!bigger ? classes.time : ""}>{h}</span>
           <span className={classes.unit}>h</span>{" "}
         </>
       )}
       {(!!m || m === 0) && (
         <>
-          <span className={!!bigger && classes.time}>{m}</span>
+          <span className={!!bigger ? classes.time : ""}>{m}</span>
           <span className={classes.unit}>m</span>
         </>
       )}
