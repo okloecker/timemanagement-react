@@ -87,7 +87,7 @@ const AddControls = ({ handleSubmit, handleReset }) => (
 /* The start/stop button to add or stop a new record with time current when pressed */
 const StartStopButton = React.forwardRef(({ onClick, showStartButton, topActivities = [] }, ref) => {
   const classes = useStyles();
-  const [pendingValue, setPendingValue] = React.useState();
+  const [pendingValue, setPendingValue] = React.useState(topActivities.length ? topActivities[0].note : undefined);
   return (
     <Grid container justify="center" spacing={2}>
       {!!topActivities.length && showStartButton && (
@@ -103,6 +103,7 @@ const StartStopButton = React.forwardRef(({ onClick, showStartButton, topActivit
             options={topActivities}
             getOptionLabel={option => option.note || pendingValue}
             onSelect={e => setPendingValue(e.target.value)}
+            onChange={(_, newValue) => setPendingValue(newValue.note)}
             defaultValue={topActivities[0]}
             renderInput={params => (
               <TextField {...params} label="Previous Notes" />
