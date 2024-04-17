@@ -142,7 +142,7 @@ const Dashboard = props => {
         break;
       case "week":
         date1 = startOfWeek(new Date(), { weekStartsOn: 0 });
-        date2 = endOfWeek(date1, { weekStartsOn: 1 });
+        date2 = endOfWeek(date1, { weekStartsOn: 0 });
         break;
       case "today":
       default:
