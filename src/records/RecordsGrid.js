@@ -45,6 +45,7 @@ const useStyles = makeStyles({
   root: { minWidth: 275, color: "#363737" }, // https://xkcd.com/color/rgb/ dark grey
   title: { fontSize: 20, textAlign: "center" },
   controls: { paddingTop: "16px", paddingBottom: "16px" },
+  savingState: { color: "red", fontWeight: "bold" },
   pagination: { marginTop: "16px", display: "inline-block" },
   fab: { paddingLeft: "8px" },
   tags: {
@@ -390,7 +391,7 @@ const RecordsGrid = React.forwardRef((props, ref) => {
 
   // Update record with new data, optimistically showing new data in table, but
   // rolling back on error
-  const [mutate] = useMutation(updateRecord, {
+  const [mutate, { status: mutationStatus }] = useMutation(updateRecord, {
     onMutate: ({ row: newRow, method }) => {
       const previousData = queryCache.getQueryData(recordsQueryKey).records;
       // optimistically change, add or delete in-memory records:
@@ -704,6 +705,9 @@ const RecordsGrid = React.forwardRef((props, ref) => {
             <>
               &emsp; Total time for filter:&ensp;
               <TimeDuration {...minToArr(totalTime)} bigger />
+              <span className={classes.savingState}>
+                &nbsp;&nbsp;&nbsp;{mutationStatus === "loading" && "Saving data..."}
+              </span>
             </>
           )}
         </div>

@@ -30,6 +30,7 @@ import parseISO from "date-fns/parseISO";
 import startOfDay from "date-fns/startOfDay";
 import startOfMonth from "date-fns/startOfMonth";
 import startOfWeek from "date-fns/startOfWeek";
+import subWeeks from "date-fns/subWeeks";
 import { Formik } from "formik";
 import React from "react";
 import RecordsGrid from "records/RecordsGrid";
@@ -133,12 +134,18 @@ const Dashboard = props => {
   );
 
   const handlePresetButtonClick = (interval, setFieldValue) => {
+    let dateThisWeek = startOfDay(new Date());
     let date1 = startOfDay(new Date());
     let date2 = endOfDay(date1);
     switch (interval) {
       case "month":
         date1 = startOfMonth(new Date());
         date2 = endOfMonth(date1);
+        break;
+      case "fortnight":
+        dateThisWeek = startOfWeek(new Date(), { weekStartsOn: 0 });
+        date1 = subWeeks(dateThisWeek, 1);
+        date2 = endOfWeek(dateThisWeek, { weekStartsOn: 0 });
         break;
       case "week":
         date1 = startOfWeek(new Date(), { weekStartsOn: 0 });
@@ -210,13 +217,26 @@ const Dashboard = props => {
                               >
                                 This Month
                               </Button>
+
                               <Button
                                 onClick={_ =>
-                                  handlePresetButtonClick("week", setFieldValue)
+                                  handlePresetButtonClick("fortnight", setFieldValue)
                                 }
                               >
-                                This Week
+                                Fortnight
                               </Button>
+
+                              <Button
+                                onClick={_ =>
+                                  handlePresetButtonClick(
+                                    "week",
+                                    setFieldValue
+                                  )
+                                }
+                              >
+                                Week
+                              </Button>
+
                               <Button
                                 onClick={_ =>
                                   handlePresetButtonClick(
